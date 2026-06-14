@@ -1,0 +1,678 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Libreria di Giuliana e Gastone</title>
+<style>
+  :root {
+    --paper: #E8E0CC;
+    --card: #FBF8F0;
+    --ink: #2E2A24;
+    --ink-muted: #7A6F5E;
+    --green: #3C5A48;
+    --green-bg: #E2E8E1;
+    --sienna: #A6502E;
+    --sienna-bg: #F1DCC9;
+    --blue: #2B4A7A;
+    --blue-bg: #D6E0EE;
+    --rule: #CDBFA3;
+    --font-mono: 'Courier New', Courier, monospace;
+    --font-serif: Palatino, 'Palatino Linotype', Georgia, serif;
+    --font-sans: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  }
+  * { box-sizing: border-box; }
+  html { -webkit-text-size-adjust: 100%; }
+  body { margin: 0; font-family: var(--font-sans); background: var(--paper); color: var(--ink); line-height: 1.5; }
+  @media (prefers-reduced-motion: reduce) { * { transition: none !important; } }
+
+  /* ── Intestazione ── */
+  header { text-align: center; padding: 2.8rem 1.2rem 1.4rem; }
+  .lib-header { display: inline-block; }
+  .lib-rule {
+    height: 1px;
+    background: linear-gradient(90deg, transparent, var(--rule) 8%, var(--green) 32%, var(--green) 68%, var(--rule) 92%, transparent);
+    margin: 0.75rem 0;
+  }
+  .lib-name {
+    font-family: Palatino, 'Palatino Linotype', Georgia, serif;
+    font-size: clamp(2.1rem, 6.5vw, 3.6rem);
+    font-weight: normal;
+    letter-spacing: 0.03em;
+    color: var(--ink);
+    line-height: 1.15;
+    margin: 0;
+  }
+  .lib-sub {
+    font-family: Palatino, 'Palatino Linotype', Georgia, serif;
+    font-style: italic;
+    font-size: 1.05rem;
+    color: var(--ink-muted);
+    letter-spacing: 0.07em;
+    margin: 0.25rem 0 0;
+  }
+  .intro {
+    text-align: center; font-size: 0.85rem; color: var(--ink-muted);
+    max-width: 32em; margin: 1rem auto 0; padding: 0 1rem; line-height: 1.6;
+  }
+
+  main { max-width: 920px; margin: 0 auto; padding: 1.4rem 1rem 4rem; }
+
+  /* ── Selezione utente ── */
+  .user-desk {
+    background: var(--card); border: 1px solid var(--rule); border-radius: 2px;
+    padding: 1rem 1.2rem; margin-bottom: 1.4rem;
+  }
+  .user-desk label {
+    display: block; font-family: var(--font-mono); text-transform: uppercase;
+    font-size: 0.72rem; letter-spacing: 0.1em; color: var(--ink-muted); margin-bottom: 0.5rem;
+  }
+  select, input[type="password"], input[type="file"], input[type="search"] {
+    width: 100%; padding: 0.65rem; border: 1px solid var(--rule); border-radius: 2px;
+    font-size: 0.95rem; font-family: var(--font-sans); background: #fff; color: var(--ink);
+  }
+
+  /* ── Banner azione ── */
+  #action-msg {
+    background: var(--green-bg); border: 1px solid var(--green); border-radius: 2px;
+    padding: 0.8rem 1rem; margin-bottom: 1rem; font-size: 0.88rem;
+  }
+  #action-msg p { margin: 0 0 0.5rem; }
+  .btn-row { display: flex; gap: 0.5rem; flex-wrap: wrap; }
+
+  .status { min-height: 1.3rem; font-size: 0.85rem; margin: 0 0 0.8rem; font-family: var(--font-mono); }
+  .status-success { color: var(--green); }
+  .status-error { color: var(--sienna); }
+
+  /* ── Cerca ── */
+  .search-bar { display: flex; align-items: center; gap: 0.8rem; margin-bottom: 1rem; }
+  .search-bar input {
+    flex: 1; padding: 0.65rem 0.9rem; border: 1px solid var(--rule); border-radius: 2px;
+    font-size: 0.95rem; background: var(--card); color: var(--ink);
+  }
+  .search-bar input::placeholder { color: var(--ink-muted); }
+  #search-count { font-family: var(--font-mono); font-size: 0.72rem; letter-spacing: 0.08em; color: var(--ink-muted); white-space: nowrap; }
+
+  /* ── Catalogo ── */
+  .catalog-header {
+    display: flex; justify-content: space-between; align-items: baseline;
+    margin-bottom: 1rem; border-bottom: 1px solid var(--rule); padding-bottom: 0.5rem;
+  }
+  .catalog-header h2 { font-family: var(--font-mono); text-transform: uppercase; letter-spacing: 0.12em; font-size: 0.78rem; color: var(--ink-muted); font-weight: normal; margin: 0; }
+  #book-list { display: grid; grid-template-columns: 1fr; gap: 1rem; }
+  @media (min-width: 680px) { #book-list { grid-template-columns: repeat(2, 1fr); } }
+
+  /* ── Scheda libro ── */
+  .book-card {
+    background: var(--card); border: 1px solid var(--rule); border-left: none;
+    border-radius: 0 2px 2px 0; padding: 1rem 1.1rem 1rem 1.5rem; position: relative;
+  }
+  .book-card::before {
+    content: ''; position: absolute; left: 0; top: 0; bottom: 0; width: 0.5rem;
+    border-left: 1px dashed var(--rule);
+    background-image: radial-gradient(circle, var(--paper) 2.2px, transparent 2.3px);
+    background-size: 100% 16px;
+  }
+  .book-title { font-family: var(--font-serif); font-size: 1.15rem; font-weight: bold; line-height: 1.3; }
+  .book-author { font-family: var(--font-serif); font-style: italic; color: var(--ink-muted); margin: 0.15rem 0 0.8rem; }
+  .line-available { font-family: var(--font-mono); font-size: 0.72rem; letter-spacing: 0.12em; text-transform: uppercase; color: var(--green); border-bottom: 1px dashed var(--rule); padding-bottom: 0.55rem; margin-bottom: 0.7rem; }
+  .stamp { display: inline-block; font-family: var(--font-mono); text-transform: uppercase; letter-spacing: 0.05em; font-size: 0.72rem; color: var(--sienna); border: 2px double var(--sienna); background: var(--sienna-bg); padding: 0.4rem 0.7rem; transform: rotate(-1.3deg); margin-bottom: 0.6rem; line-height: 1.6; }
+  .queue-line { font-size: 0.78rem; color: var(--blue); background: var(--blue-bg); border-left: 2px solid var(--blue); padding: 0.3rem 0.6rem; margin-bottom: 0.6rem; font-family: var(--font-mono); }
+  .book-actions { display: flex; gap: 0.5rem; flex-wrap: wrap; margin-bottom: 0.2rem; }
+
+  /* ── Bottoni ── */
+  .btn {
+    font-family: var(--font-mono); text-transform: uppercase; letter-spacing: 0.05em;
+    font-size: 0.75rem; padding: 0.65rem 0.9rem; border-radius: 2px; cursor: pointer;
+    border: 1px solid var(--green); background: var(--card); color: var(--green);
+    transition: filter 0.15s; text-decoration: none; display: inline-block;
+  }
+  .btn-primary { background: var(--green); color: var(--card); }
+  .btn-secondary { background: var(--card); color: var(--ink-muted); border-color: var(--rule); }
+  .btn-blue { border-color: var(--blue); color: var(--blue); }
+  .btn-danger { border-color: var(--sienna); color: var(--sienna); }
+  .btn:disabled { opacity: 0.6; cursor: not-allowed; }
+  .btn:not(:disabled):hover { filter: brightness(0.93); }
+  button:focus-visible, select:focus-visible, input:focus-visible { outline: 2px solid var(--green); outline-offset: 2px; }
+
+  /* ── Info libro ── */
+  .book-info { border-top: 1px dashed var(--rule); margin-top: 0.8rem; padding-top: 0.7rem; }
+  .info-block { margin-bottom: 0.7rem; overflow: hidden; }
+  .info-block h4 { font-family: var(--font-mono); text-transform: uppercase; letter-spacing: 0.1em; font-size: 0.7rem; color: var(--ink-muted); margin: 0 0 0.35rem; }
+  .info-block p { margin: 0; font-size: 0.9rem; }
+  .cover { max-width: 64px; border: 1px solid var(--rule); float: left; margin: 0 0.7rem 0.4rem 0; filter: sepia(0.2) contrast(0.95); }
+  .loading { color: var(--ink-muted); font-style: italic; font-size: 0.9rem; }
+  .empty { text-align: center; color: var(--ink-muted); font-family: var(--font-serif); font-style: italic; padding: 2.5rem 1rem; border: 1px dashed var(--rule); border-radius: 2px; }
+
+  /* ── Sezione admin (in fondo) ── */
+  .admin-section {
+    margin-top: 4rem;
+    padding-top: 1.8rem;
+    border-top: 1px solid var(--rule);
+  }
+  .admin-section-label {
+    font-family: var(--font-mono); text-transform: uppercase;
+    letter-spacing: 0.2em; font-size: 0.68rem; color: var(--ink-muted);
+    text-align: center; margin: 0 0 1rem;
+  }
+  .admin-box {
+    background: var(--card); border: 1px solid var(--rule);
+    border-radius: 2px; padding: 1rem 1.2rem;
+  }
+  .admin-header { display: flex; align-items: center; gap: 0.6rem; flex-wrap: wrap; }
+  .notif-badge {
+    background: var(--sienna); color: #fff; font-family: var(--font-mono);
+    font-size: 0.7rem; font-weight: bold; border-radius: 50%;
+    min-width: 1.4rem; height: 1.4rem; padding: 0 0.2rem;
+    display: flex; align-items: center; justify-content: center;
+    cursor: pointer; border: none;
+  }
+  #admin-pin-area { display: flex; gap: 0.5rem; margin-top: 0.8rem; }
+  #admin-pin-area input { flex: 1; }
+  #admin-tools { margin-top: 0.9rem; }
+  #admin-tools label { display: block; font-family: var(--font-mono); text-transform: uppercase; font-size: 0.72rem; letter-spacing: 0.1em; color: var(--ink-muted); margin-bottom: 0.45rem; }
+  .hint { font-size: 0.8rem; color: var(--ink-muted); margin: 0.5rem 0 0; }
+
+  /* ── Pannello notifiche ── */
+  #notif-panel {
+    margin-top: 1rem; padding-top: 0.8rem;
+    border-top: 1px dashed var(--rule);
+  }
+  #notif-panel h3 { font-family: var(--font-mono); text-transform: uppercase; letter-spacing: 0.1em; font-size: 0.75rem; color: var(--ink-muted); font-weight: normal; margin: 0 0 0.8rem; }
+  .notif-item { display: flex; gap: 0.6rem; align-items: flex-start; padding: 0.55rem 0; border-bottom: 1px dashed var(--rule); font-size: 0.88rem; }
+  .notif-item:last-child { border-bottom: none; }
+  .notif-dot { width: 0.55rem; height: 0.55rem; border-radius: 50%; background: var(--sienna); margin-top: 0.35rem; flex-shrink: 0; }
+  .notif-dot.read { background: var(--rule); }
+  .notif-meta { font-size: 0.75rem; color: var(--ink-muted); margin-top: 0.1rem; }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="lib-header">
+    <div class="lib-rule"></div>
+    <h1 class="lib-name">Libreria di Giuliana e Gastone</h1>
+    <div class="lib-rule"></div>
+    <p class="lib-sub">registro dei prestiti</p>
+  </div>
+  <p class="intro">Seleziona il tuo nome, scegli un libro e premi &laquo;Richiedi&raquo;. Se il libro &egrave; gi&agrave; in prestito puoi metterti in lista con &laquo;Prenota&raquo;.</p>
+</header>
+
+<main>
+  <!-- Selezione utente -->
+  <div class="user-desk">
+    <label for="user-select">Chi sei?</label>
+    <select id="user-select">
+      <option value="">&mdash; seleziona il tuo nome &mdash;</option>
+      <option>Alessandro</option>
+      <option>Chiara B.</option>
+      <option>Chiara G.</option>
+      <option>Claudia</option>
+      <option>Cristina</option>
+      <option>Damiano</option>
+      <option>Federico</option>
+      <option>Gabriella</option>
+      <option>Ludovico</option>
+      <option>Matteo</option>
+      <option>Mauro</option>
+      <option>Maurizio</option>
+      <option>Sara</option>
+    </select>
+  </div>
+
+  <div id="action-msg" hidden></div>
+  <div id="catalog-status" class="status"></div>
+
+  <div class="search-bar">
+    <input type="search" id="search-input" placeholder="Cerca per titolo o autore&hellip;" autocomplete="off" />
+    <span id="search-count"></span>
+  </div>
+
+  <div class="catalog-header">
+    <h2>Catalogo</h2>
+    <button id="refresh-btn" class="btn">Aggiorna</button>
+  </div>
+  <div id="book-list"></div>
+
+  <!-- Sezione amministratore — in fondo -->
+  <div class="admin-section">
+    <p class="admin-section-label">Amministratore</p>
+    <div class="admin-box">
+      <div class="admin-header">
+        <button id="admin-toggle" class="btn">Modalit&agrave; amministratore</button>
+        <button id="notif-badge" class="notif-badge" hidden title="Notifiche non lette" onclick="toggleNotifPanel()"></button>
+      </div>
+      <div id="admin-pin-area" hidden>
+        <input type="password" id="admin-pin-input" placeholder="PIN" inputmode="numeric" autocomplete="off" />
+        <button class="btn btn-primary" id="admin-pin-confirm">Conferma</button>
+      </div>
+      <div id="admin-tools" hidden>
+        <label for="md-upload">Carica / aggiorna elenco libri (.md)</label>
+        <input type="file" id="md-upload" accept=".md,text/markdown,text/plain" />
+        <p class="hint">Una riga per libro &mdash; formato: Titolo | Autore</p>
+      </div>
+      <div id="notif-panel" hidden></div>
+    </div>
+  </div>
+</main>
+
+<script>
+  // ====== CONFIGURAZIONE ======
+  const ADMIN_PIN = '180240';
+  // Numero WhatsApp in formato internazionale senza + (es. '393331234567')
+  // Lascia '' per mostrare solo "copia messaggio"
+  const ADMIN_WHATSAPP = '393346740647';
+
+  // ====== STATO ======
+  let state = { currentUser: null, isAdmin: false, catalog: [], notifications: [] };
+  let infoCache = {};
+  let openInfo = new Set();
+  let searchTerm = '';
+  let notifPanelOpen = false;
+
+  // ====== AVVIO ======
+  init();
+  async function init() {
+    await Promise.all([loadCatalog(), loadNotifications()]);
+    setInterval(() => { loadCatalog(); loadNotifications(); }, 60000);
+  }
+
+  // ====== STORAGE ======
+  async function loadCatalog() {
+    try {
+      const r = await window.storage.get('catalog', true);
+      state.catalog = (r && r.value) ? JSON.parse(r.value) : [];
+    } catch(e) { state.catalog = []; }
+    render();
+  }
+  async function saveCatalog() {
+    try {
+      const r = await window.storage.set('catalog', JSON.stringify(state.catalog), true);
+      if (!r) showStatus('Errore nel salvataggio.', 'error');
+    } catch(e) { showStatus('Errore nel salvataggio.', 'error'); }
+  }
+  async function loadNotifications() {
+    try {
+      const r = await window.storage.get('notifications', true);
+      state.notifications = (r && r.value) ? JSON.parse(r.value) : [];
+    } catch(e) { state.notifications = []; }
+    renderNotifBadge();
+  }
+  async function saveNotifications() {
+    try { await window.storage.set('notifications', JSON.stringify(state.notifications), true); } catch(e) {}
+  }
+  async function addNotification(type, user, bookTitle) {
+    await loadNotifications();
+    state.notifications.unshift({
+      id: Date.now() + '-' + Math.random().toString(36).slice(2),
+      type, user, bookTitle,
+      timestamp: new Date().toISOString(),
+      read: false
+    });
+    if (state.notifications.length > 60) state.notifications = state.notifications.slice(0, 60);
+    await saveNotifications();
+    renderNotifBadge();
+  }
+
+  // ====== UTILITÀ ======
+  function esc(str) {
+    if (!str) return '';
+    return String(str).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+  }
+  function todayISO() {
+    const d = new Date();
+    return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');
+  }
+  function fmtDate(iso) {
+    if (!iso) return '';
+    const p = iso.split('-');
+    return p[2]+'/'+p[1]+'/'+p[0];
+  }
+  function fmtDateTime(iso) {
+    const d = new Date(iso);
+    return d.getDate()+'/'+(d.getMonth()+1)+'/'+d.getFullYear()+' '+
+      String(d.getHours()).padStart(2,'0')+':'+String(d.getMinutes()).padStart(2,'0');
+  }
+  function keyFor(b) {
+    return (b.title||'').trim().toLowerCase()+'|'+(b.author||'').trim().toLowerCase();
+  }
+  function showStatus(msg, type) {
+    const el = document.getElementById('catalog-status');
+    el.textContent = msg; el.className = 'status status-'+type;
+    setTimeout(() => { el.textContent = ''; el.className = 'status'; }, 4500);
+  }
+
+  // ====== PARSING .MD ======
+  function parseMarkdown(text) {
+    const books = [];
+    for (let raw of text.split('\n')) {
+      let line = raw.trim();
+      if (!line || line.startsWith('#')) continue;
+      line = line.replace(/^[-*+]\s*/, '');
+      let title, author;
+      if (line.includes('|')) {
+        const parts = line.split('|');
+        title = parts[0].trim(); author = parts.slice(1).join('|').trim();
+      } else {
+        const idx = line.lastIndexOf(' - ');
+        if (idx > -1) { title = line.slice(0,idx).trim(); author = line.slice(idx+3).trim(); }
+        else { title = line; author = ''; }
+      }
+      if (title) books.push({ title, author });
+    }
+    return books;
+  }
+  function mergeCatalog(existing, parsed) {
+    const map = new Map();
+    existing.forEach(b => map.set(keyFor(b), b));
+    return parsed.map(p => {
+      const old = map.get(keyFor(p));
+      if (old) return { title: p.title, author: p.author, status: old.status, borrower: old.borrower, requestDate: old.requestDate, queue: old.queue || [], returnRequested: old.returnRequested || false };
+      return { title: p.title, author: p.author, status: 'disponibile', borrower: null, requestDate: null, queue: [] };
+    });
+  }
+
+  // ====== UTENTE / ADMIN ======
+  document.getElementById('user-select').addEventListener('change', e => {
+    state.currentUser = e.target.value || null;
+    document.getElementById('action-msg').hidden = true;
+    render();
+  });
+  document.getElementById('admin-toggle').addEventListener('click', () => {
+    if (state.isAdmin) {
+      state.isAdmin = false; notifPanelOpen = false;
+      document.getElementById('admin-tools').hidden = true;
+      document.getElementById('notif-panel').hidden = true;
+      document.getElementById('admin-toggle').textContent = 'Modalit\u00E0 amministratore';
+      render(); return;
+    }
+    document.getElementById('admin-pin-area').hidden = !document.getElementById('admin-pin-area').hidden;
+  });
+  function checkPin() {
+    const input = document.getElementById('admin-pin-input');
+    if (input.value === ADMIN_PIN) {
+      state.isAdmin = true;
+      document.getElementById('admin-pin-area').hidden = true;
+      document.getElementById('admin-tools').hidden = false;
+      document.getElementById('admin-toggle').textContent = 'Esci da modalit\u00E0 amministratore';
+      input.value = '';
+      renderNotifBadge(); render();
+    } else { showStatus('PIN errato.', 'error'); input.value = ''; }
+  }
+  document.getElementById('admin-pin-confirm').addEventListener('click', checkPin);
+  document.getElementById('admin-pin-input').addEventListener('keydown', e => { if (e.key==='Enter') checkPin(); });
+  document.getElementById('refresh-btn').addEventListener('click', () => { loadCatalog(); loadNotifications(); });
+  document.getElementById('md-upload').addEventListener('change', async e => {
+    const file = e.target.files[0];
+    if (!file) return;
+    const text = await file.text();
+    const parsed = parseMarkdown(text);
+    if (!parsed.length) { showStatus('Nessun libro trovato. Formato: Titolo | Autore', 'error'); e.target.value=''; return; }
+    state.catalog = mergeCatalog(state.catalog, parsed);
+    await saveCatalog(); render();
+    showStatus('Catalogo aggiornato: '+parsed.length+' libri.', 'success');
+    e.target.value = '';
+  });
+  document.getElementById('search-input').addEventListener('input', e => {
+    searchTerm = e.target.value.trim().toLowerCase(); render();
+  });
+
+  // ====== NOTIFICHE ======
+  function renderNotifBadge() {
+    const badge = document.getElementById('notif-badge');
+    if (!state.isAdmin) { badge.hidden = true; return; }
+    const unread = state.notifications.filter(n => !n.read).length;
+    if (!unread) { badge.hidden = true; return; }
+    badge.hidden = false;
+    badge.textContent = unread > 9 ? '9+' : unread;
+  }
+  function toggleNotifPanel() {
+    if (!state.isAdmin) return;
+    notifPanelOpen = !notifPanelOpen;
+    if (notifPanelOpen) {
+      state.notifications.forEach(n => n.read = true);
+      saveNotifications(); renderNotifBadge();
+    }
+    renderNotifPanel();
+  }
+  function renderNotifPanel() {
+    const panel = document.getElementById('notif-panel');
+    if (!notifPanelOpen || !state.isAdmin) { panel.hidden = true; return; }
+    panel.hidden = false;
+    const labels = { prestito:'Ha preso in prestito', prenotazione:'Ha prenotato', passaggio:'Passato automaticamente a', restituzione_richiesta:'Vuole restituire' };
+    if (!state.notifications.length) {
+      panel.innerHTML = '<h3>Notifiche</h3><p style="color:var(--ink-muted);font-style:italic;font-size:0.9rem;">Nessuna attivit\u00E0 recente.</p>';
+      return;
+    }
+    panel.innerHTML = '<h3>Ultime attivit\u00E0</h3>' +
+      state.notifications.slice(0,25).map(n =>
+        '<div class="notif-item"><div class="notif-dot read"></div><div>' +
+        '<span>' + esc(n.user) + ' &mdash; ' + (labels[n.type]||n.type) + ' <em>' + esc(n.bookTitle) + '</em></span>' +
+        '<div class="notif-meta">' + fmtDateTime(n.timestamp) + '</div></div></div>'
+      ).join('') +
+      (state.notifications.length > 25 ? '<p class="hint">Mostrate le ultime 25 voci.</p>' : '');
+  }
+
+  // ====== BANNER AZIONE ======
+  function showActionMsg(bookTitle, type) {
+    const el = document.getElementById('action-msg');
+    const verbs = { prestito:'ha preso in prestito', prenotazione:'si \u00E8 prenotato/a per', restituzione_richiesta:'vuole restituire' };
+    const txt = (state.currentUser||'') + ' ' + (verbs[type]||'ha aggiornato') + ': "' + bookTitle + '"';
+    let html = '<p>Vuoi avvisare il bibliotecario?</p><div class="btn-row">';
+    if (ADMIN_WHATSAPP) {
+      const wa = encodeURIComponent('\uD83D\uDCDA '+txt);
+      html += '<a class="btn btn-primary" href="https://wa.me/'+ADMIN_WHATSAPP+'?text='+wa+'" target="_blank" rel="noopener">Invia su WhatsApp</a>';
+    }
+    html += '<button class="btn" onclick="copyMsg(\''+txt.replace(/'/g,"\\'")+'\')" >Copia messaggio</button>';
+    html += '<button class="btn btn-secondary" onclick="document.getElementById(\'action-msg\').hidden=true">Chiudi</button></div>';
+    el.innerHTML = html; el.hidden = false;
+    el.scrollIntoView({ behavior:'smooth', block:'nearest' });
+  }
+  function copyMsg(txt) {
+    navigator.clipboard.writeText('\uD83D\uDCDA '+txt)
+      .then(() => showStatus('Messaggio copiato!', 'success'))
+      .catch(() => showStatus(txt, 'success'));
+  }
+
+  // ====== PRESTITI ======
+  async function requestReturn(idx) {
+    const b = state.catalog[idx];
+    if (!state.currentUser || b.borrower !== state.currentUser) return;
+    b.returnRequested = true;
+    await saveCatalog();
+    await addNotification('restituzione_richiesta', state.currentUser, b.title);
+    render(); showActionMsg(b.title, 'restituzione_richiesta');
+    showStatus('Restituzione segnalata. Avvisa il bibliotecario!', 'success');
+  }
+  async function requestBook(idx) {
+    const b = state.catalog[idx];
+    if (!state.currentUser || b.status !== 'disponibile') return;
+    if (state.catalog.some(x => x.borrower === state.currentUser)) return;
+    b.status = 'in_prestito'; b.borrower = state.currentUser; b.requestDate = todayISO();
+    if (!b.queue) b.queue = [];
+    await saveCatalog();
+    await addNotification('prestito', state.currentUser, b.title);
+    render(); showActionMsg(b.title, 'prestito');
+    showStatus('Hai preso \u201C'+b.title+'\u201D. Buona lettura!', 'success');
+  }
+  async function reserveBook(idx) {
+    const b = state.catalog[idx];
+    if (!state.currentUser || b.status !== 'in_prestito') return;
+    if (state.catalog.some(x => x.borrower === state.currentUser)) return;
+    if (!b.queue) b.queue = [];
+    if (b.queue.includes(state.currentUser)) return;
+    b.queue.push(state.currentUser);
+    await saveCatalog();
+    await addNotification('prenotazione', state.currentUser, b.title);
+    render(); showActionMsg(b.title, 'prenotazione');
+    showStatus('Sei in lista per \u201C'+b.title+'\u201D!', 'success');
+  }
+  async function cancelReservation(idx) {
+    const b = state.catalog[idx];
+    if (!state.currentUser || !b.queue) return;
+    b.queue = b.queue.filter(u => u !== state.currentUser);
+    await saveCatalog(); render();
+    showStatus('Prenotazione annullata.', 'success');
+  }
+  async function returnBook(idx) {
+    if (!state.isAdmin) return;
+    const b = state.catalog[idx];
+    if (!b.queue) b.queue = [];
+    b.returnRequested = false;
+    if (b.queue.length > 0) {
+      const next = b.queue.shift();
+      b.borrower = next; b.requestDate = todayISO(); b.status = 'in_prestito';
+      await addNotification('passaggio', next, b.title);
+      showStatus('\u201C'+b.title+'\u201D passato a '+next+' (primo in lista).', 'success');
+    } else {
+      b.status = 'disponibile'; b.borrower = null; b.requestDate = null;
+      showStatus('\u201C'+b.title+'\u201D \u00E8 di nuovo disponibile.', 'success');
+    }
+    await saveCatalog(); render();
+  }
+
+  // ====== INFO LIBRO / AUTORE ======
+  function toggleInfo(idx) {
+    if (openInfo.has(idx)) { openInfo.delete(idx); }
+    else { openInfo.add(idx); if (!infoCache[idx]) fetchAndCacheInfo(idx); }
+    render();
+  }
+  async function fetchAndCacheInfo(idx) {
+    const b = state.catalog[idx];
+    const [plot, author] = await Promise.all([fetchPlot(b), fetchAuthorInfo(b)]);
+    infoCache[idx] = plot + author;
+    if (openInfo.has(idx)) {
+      const el = document.getElementById('info-'+idx);
+      if (el) el.innerHTML = infoCache[idx];
+    }
+  }
+  async function fetchPlot(b) {
+    try {
+      const q = encodeURIComponent('intitle:'+b.title+' inauthor:'+b.author);
+      const res = await fetch('https://www.googleapis.com/books/v1/volumes?q='+q+'&maxResults=1');
+      const data = await res.json();
+      const info = data.items && data.items[0] && data.items[0].volumeInfo;
+      if (!info) return '<div class="info-block"><h4>Trama</h4><p>Nessuna informazione trovata.</p></div>';
+      const desc = info.description ? stripHTML(info.description) : 'Trama non disponibile.';
+      const cover = info.imageLinks && info.imageLinks.thumbnail;
+      return '<div class="info-block">'+(cover ? '<img class="cover" src="'+cover+'" alt="">' : '')+
+        '<h4>Trama</h4><p>'+esc(desc)+'</p></div>';
+    } catch(e) { return '<div class="info-block"><h4>Trama</h4><p>Errore nel recupero.</p></div>'; }
+  }
+  function stripHTML(html) {
+    const t = document.createElement('div'); t.innerHTML = html;
+    return t.textContent || t.innerText || '';
+  }
+  async function fetchAuthorInfo(b) {
+    if (!b.author) return '';
+    const name = b.author.trim();
+    let data = await fetchWiki('it', name);
+    if (!data) data = await fetchWiki('en', name);
+    if (!data) return '<div class="info-block"><h4>'+esc(name)+'</h4><p>Biografia non trovata.</p></div>';
+    const photo = data.thumbnail && data.thumbnail.source;
+    return '<div class="info-block">'+(photo ? '<img class="cover" src="'+photo+'" alt="">' : '')+
+      '<h4>'+esc(name)+'</h4><p>'+esc(data.extract)+'</p></div>';
+  }
+  async function fetchWiki(lang, name) {
+    try {
+      const res = await fetch('https://'+lang+'.wikipedia.org/api/rest_v1/page/summary/'+encodeURIComponent(name.replace(/ /g,'_')));
+      if (!res.ok) return null;
+      const data = await res.json();
+      if (!data.extract || data.type==='disambiguation') return null;
+      return data;
+    } catch(e) { return null; }
+  }
+
+  // ====== RENDERING ======
+  function render() {
+    renderNotifBadge(); renderNotifPanel();
+    const listEl = document.getElementById('book-list');
+    if (!state.catalog.length) {
+      listEl.innerHTML = '<p class="empty">Nessun libro in catalogo.<br>L\'amministratore deve caricare l\'elenco (.md).</p>';
+      document.getElementById('search-count').textContent = '';
+      return;
+    }
+    const filtered = searchTerm
+      ? state.catalog.filter(b => (b.title||'').toLowerCase().includes(searchTerm) || (b.author||'').toLowerCase().includes(searchTerm))
+      : state.catalog;
+    document.getElementById('search-count').textContent = searchTerm
+      ? filtered.length+' di '+state.catalog.length
+      : state.catalog.length+' libri';
+    if (!filtered.length) {
+      listEl.innerHTML = '<p class="empty">Nessun risultato per \u00AB'+esc(searchTerm)+'\u00BB.</p>';
+      return;
+    }
+    listEl.innerHTML = filtered.map(b => bookCardHTML(b, state.catalog.indexOf(b))).join('');
+  }
+
+  function bookCardHTML(b, idx) {
+    const isLoaned = b.status === 'in_prestito';
+    const queue = b.queue || [];
+    const userInQueue = state.currentUser && queue.includes(state.currentUser);
+    const userHasBook = state.currentUser && state.catalog.some(x => x.borrower === state.currentUser);
+    const isMyBook = state.currentUser && b.borrower === state.currentUser;
+    const returnRequested = !!b.returnRequested;
+
+    const statusHTML = isLoaned
+      ? '<div class="stamp">In prestito a '+esc(b.borrower)+'<br>dal '+fmtDate(b.requestDate)+'</div>'
+      : '<div class="line-available">Disponibile</div>';
+
+    // Segnalazione restituzione (visibile solo all'admin)
+    const returnFlagHTML = (isLoaned && returnRequested && state.isAdmin)
+      ? '<div class="queue-line" style="color:var(--sienna);background:var(--sienna-bg);border-color:var(--sienna);">\u26A0\uFE0F '+esc(b.borrower)+' vuole restituirlo</div>'
+      : '';
+
+    let queueHTML = '';
+    if (isLoaned && queue.length > 0) {
+      const label = state.isAdmin ? 'In lista: '+queue.map(esc).join(', ') : 'In lista: '+queue.length+' persone';
+      queueHTML = '<div class="queue-line">'+label+'</div>';
+    }
+
+    let actionBtn = '';
+    if (!isLoaned) {
+      if (!state.currentUser) actionBtn = '<button class="btn btn-secondary" disabled>Richiedi</button>';
+      else if (isMyBook) actionBtn = '<button class="btn btn-secondary" disabled>Tuo in prestito</button>';
+      else if (userHasBook) actionBtn = '<button class="btn btn-secondary" disabled title="Hai gi\u00E0 un libro">Richiedi</button>';
+      else actionBtn = '<button class="btn btn-primary" onclick="requestBook('+idx+')">Richiedi</button>';
+    } else {
+      if (isMyBook) {
+        // Chi ha il libro: tasto restituisci (una volta sola)
+        if (returnRequested) {
+          actionBtn = '<button class="btn btn-secondary" disabled>Restituzione segnalata</button>';
+        } else {
+          actionBtn = '<button class="btn btn-danger" onclick="requestReturn('+idx+')">Restituisci</button>';
+        }
+      } else if (!state.currentUser) {
+        actionBtn = '<button class="btn btn-secondary" disabled>Prenota</button>';
+      } else if (userInQueue) {
+        actionBtn = '<button class="btn btn-danger" onclick="cancelReservation('+idx+')">Annulla prenotazione</button>';
+      } else if (userHasBook) {
+        actionBtn = '<button class="btn btn-secondary" disabled title="Hai gi\u00E0 un libro">Prenota</button>';
+      } else {
+        actionBtn = '<button class="btn btn-blue" onclick="reserveBook('+idx+')">Prenota</button>';
+      }
+    }
+
+    let returnBtn = '';
+    if (isLoaned && state.isAdmin) {
+      const label = queue.length > 0 ? 'Restituito \u2192 passa a '+queue[0] : 'Segna come restituito';
+      returnBtn = '<button class="btn" onclick="returnBook('+idx+')">'+esc(label)+'</button>';
+    }
+
+    const infoOpen = openInfo.has(idx);
+    const infoContent = infoOpen ? (infoCache[idx] || '<p class="loading">Ricerca in corso&hellip;</p>') : '';
+
+    return '<div class="book-card">'+
+      '<div class="book-title">'+esc(b.title)+'</div>'+
+      '<div class="book-author">'+esc(b.author)+'</div>'+
+      statusHTML + returnFlagHTML + queueHTML +
+      '<div class="book-actions">'+
+        '<button class="btn" onclick="toggleInfo('+idx+')">Info</button>'+
+        actionBtn + returnBtn +
+      '</div>'+
+      '<div class="book-info" id="info-'+idx+'"'+(infoOpen?'':' hidden')+'>'+infoContent+'</div>'+
+    '</div>';
+  }
+</script>
+</body>
+</html>
