@@ -36,10 +36,6 @@
   .user-desk label { display: block; font-family: var(--font-mono); text-transform: uppercase; font-size: 0.72rem; letter-spacing: 0.1em; color: var(--ink-muted); margin-bottom: 0.5rem; }
   select, input[type="password"], input[type="file"], input[type="search"] { width: 100%; padding: 0.65rem; border: 1px solid var(--rule); border-radius: 2px; font-size: 0.95rem; font-family: var(--font-sans); background: #fff; color: var(--ink); }
 
-  #action-msg { background: var(--green-bg); border: 1px solid var(--green); border-radius: 2px; padding: 0.8rem 1rem; margin-bottom: 1rem; font-size: 0.88rem; }
-  #action-msg p { margin: 0 0 0.5rem; }
-  .btn-row { display: flex; gap: 0.5rem; flex-wrap: wrap; }
-
   .status { min-height: 1.3rem; font-size: 0.85rem; margin: 0 0 0.8rem; font-family: var(--font-mono); }
   .status-success { color: var(--green); }
   .status-error { color: var(--sienna); }
@@ -137,7 +133,6 @@
     </select>
   </div>
 
-  <div id="action-msg" hidden></div>
   <div id="catalog-status" class="status"></div>
 
   <div class="search-bar">
@@ -418,7 +413,9 @@
     if (!b.queue) b.queue = [];
     await saveCatalog();
     await addNotification('prestito', state.currentUser, b.title);
-    showActionMsg(b.title, b.author, 'prestito');
+    const bookLabel = b.author ? '"'+b.title+'" di '+b.author : '"'+b.title+'"';
+    const txt = state.currentUser+' ha preso in prestito: '+bookLabel;
+    window.open('https://wa.me/'+ADMIN_WHATSAPP+'?text='+encodeURIComponent('\uD83D\uDCDA '+txt), '_blank', 'noopener');
     showStatus('Hai preso \u201C'+b.title+'\u201D. Buona lettura!', 'success');
   }
   async function requestReturn(idx) {
@@ -427,7 +424,9 @@
     b.returnRequested = true;
     await saveCatalog();
     await addNotification('restituzione_richiesta', state.currentUser, b.title);
-    showActionMsg(b.title, b.author, 'restituzione_richiesta');
+    const bookLabel = b.author ? '"'+b.title+'" di '+b.author : '"'+b.title+'"';
+    const txt = state.currentUser+' vuole restituire: '+bookLabel;
+    window.open('https://wa.me/'+ADMIN_WHATSAPP+'?text='+encodeURIComponent('\uD83D\uDCDA '+txt), '_blank', 'noopener');
     showStatus('Restituzione segnalata. Avvisa il bibliotecario!', 'success');
   }
   async function reserveBook(idx) {
