@@ -414,39 +414,40 @@
   async function requestBook(idx) {
     const b = state.catalog[idx];
     if (!state.currentUser || b.status !== 'disponibile') return;
-    if (state.catalog.some(x => x.borrower === state.currentUser)) return;
+    if (state.catalog.some(x => x.borrower === state.currentUser || (x.queue||[]).includes(state.currentUser))) return;
+    // WA va aperto prima degli await — dopo perdono il contesto del gesto e vengono bloccati
+    const bookLabel = b.author ? '"'+b.title+'" di '+b.author : '"'+b.title+'"';
+    const txt = state.currentUser+' ha preso in prestito: '+bookLabel;
+    window.open('https://wa.me/'+ADMIN_WHATSAPP+'?text='+encodeURIComponent('\uD83D\uDCDA '+txt), '_blank', 'noopener');
     b.status = 'in_prestito'; b.borrower = state.currentUser; b.requestDate = todayISO();
     if (!b.queue) b.queue = [];
     await saveCatalog();
     await addNotification('prestito', state.currentUser, b.title);
-    const bookLabel = b.author ? '"'+b.title+'" di '+b.author : '"'+b.title+'"';
-    const txt = state.currentUser+' ha preso in prestito: '+bookLabel;
-    window.open('https://wa.me/'+ADMIN_WHATSAPP+'?text='+encodeURIComponent('\uD83D\uDCDA '+txt), '_blank', 'noopener');
     showStatus('Hai preso \u201C'+b.title+'\u201D. Buona lettura!', 'success');
   }
   async function requestReturn(idx) {
     const b = state.catalog[idx];
     if (!state.currentUser || b.borrower !== state.currentUser) return;
-    b.returnRequested = true;
-    await saveCatalog();
-    await addNotification('restituzione_richiesta', state.currentUser, b.title);
     const bookLabel = b.author ? '"'+b.title+'" di '+b.author : '"'+b.title+'"';
     const txt = state.currentUser+' vuole restituire: '+bookLabel;
     window.open('https://wa.me/'+ADMIN_WHATSAPP+'?text='+encodeURIComponent('\uD83D\uDCDA '+txt), '_blank', 'noopener');
+    b.returnRequested = true;
+    await saveCatalog();
+    await addNotification('restituzione_richiesta', state.currentUser, b.title);
     showStatus('Restituzione segnalata. Avvisa il bibliotecario!', 'success');
   }
   async function reserveBook(idx) {
     const b = state.catalog[idx];
     if (!state.currentUser || b.status !== 'in_prestito') return;
-    if (state.catalog.some(x => x.borrower === state.currentUser)) return;
+    if (state.catalog.some(x => x.borrower === state.currentUser || (x.queue||[]).includes(state.currentUser))) return;
     if (!b.queue) b.queue = [];
     if (b.queue.includes(state.currentUser)) return;
-    b.queue.push(state.currentUser);
-    await saveCatalog();
-    await addNotification('prenotazione', state.currentUser, b.title);
     const bookLabel = b.author ? '"'+b.title+'" di '+b.author : '"'+b.title+'"';
     const txt = state.currentUser+' si \u00E8 prenotato/a per: '+bookLabel;
     window.open('https://wa.me/'+ADMIN_WHATSAPP+'?text='+encodeURIComponent('\uD83D\uDCDA '+txt), '_blank', 'noopener');
+    b.queue.push(state.currentUser);
+    await saveCatalog();
+    await addNotification('prenotazione', state.currentUser, b.title);
     showStatus('Sei in lista per \u201C'+b.title+'\u201D!', 'success');
   }
   async function cancelReservation(idx) {
@@ -498,10 +499,12 @@
   function bookCardHTML(b, idx) {
     const isLoaned = b.status === 'in_prestito';
     const queue = b.queue || [];
-    const userInQueue  = state.currentUser && queue.includes(state.currentUser);
-    const userHasBook  = state.currentUser && state.catalog.some(x => x.borrower === state.currentUser);
-    const isMyBook     = state.currentUser && b.borrower === state.currentUser;
-    const returnReq    = !!b.returnRequested;
+    const userInQueue        = state.currentUser && queue.includes(state.currentUser);
+    const userHasBook        = state.currentUser && state.catalog.some(x => x.borrower === state.currentUser);
+    const userHasReservation = state.currentUser && state.catalog.some(x => (x.queue||[]).includes(state.currentUser));
+    const userHasItem        = userHasBook || userHasReservation;
+    const isMyBook           = state.currentUser && b.borrower === state.currentUser;
+    const returnReq          = !!b.returnRequested;
 
     const statusHTML = isLoaned
       ? '<div class="stamp">In prestito a '+esc(b.borrower)+'<br>dal '+fmtDate(b.requestDate)+'</div>'
@@ -521,7 +524,7 @@
     if (!isLoaned) {
       if (!state.currentUser) actionBtn = '<button class="btn btn-secondary" disabled>Richiedi</button>';
       else if (isMyBook) actionBtn = '<button class="btn btn-secondary" disabled>Tuo in prestito</button>';
-      else if (userHasBook) actionBtn = '<button class="btn btn-secondary" disabled>Richiedi</button>';
+      else if (userHasItem) actionBtn = '<button class="btn btn-secondary" disabled>Richiedi</button>';
       else actionBtn = '<button class="btn btn-primary" onclick="requestBook('+idx+')">Richiedi</button>';
     } else {
       if (isMyBook) {
@@ -532,7 +535,7 @@
         actionBtn = '<button class="btn btn-secondary" disabled>Prenota</button>';
       } else if (userInQueue) {
         actionBtn = '<button class="btn btn-danger" onclick="cancelReservation('+idx+')">Annulla prenotazione</button>';
-      } else if (userHasBook) {
+      } else if (userHasItem) {
         actionBtn = '<button class="btn btn-secondary" disabled>Prenota</button>';
       } else {
         actionBtn = '<button class="btn btn-blue" onclick="reserveBook('+idx+')">Prenota</button>';
