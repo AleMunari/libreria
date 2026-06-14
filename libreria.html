@@ -208,6 +208,8 @@
   let state = { currentUser: null, isAdmin: false, catalog: [], notifications: [] };
   let searchTerm     = '';
   let notifPanelOpen = false;
+  // Resetta sempre il nome al caricamento (il browser potrebbe ricordare la selezione precedente)
+  document.getElementById('user-select').value = '';
 
   // ====== AVVIO CON LISTENER IN TEMPO REALE ======
   if (isConfigured) {
@@ -423,6 +425,9 @@
     await saveCatalog();
     await addNotification('prestito', state.currentUser, b.title);
     showStatus('Hai preso \u201C'+b.title+'\u201D. Buona lettura!', 'success');
+    state.currentUser = null;
+    document.getElementById('user-select').value = '';
+    render();
   }
   async function requestReturn(idx) {
     const b = state.catalog[idx];
@@ -433,6 +438,9 @@
     await saveCatalog();
     await addNotification('restituzione_richiesta', state.currentUser, b.title);
     showStatus('Restituzione segnalata. Avvisa il bibliotecario!', 'success');
+    state.currentUser = null;
+    document.getElementById('user-select').value = '';
+    render();
   }
   async function reserveBook(idx) {
     const b = state.catalog[idx];
@@ -446,6 +454,9 @@
     await saveCatalog();
     await addNotification('prenotazione', state.currentUser, b.title);
     showStatus('Sei in lista per \u201C'+b.title+'\u201D!', 'success');
+    state.currentUser = null;
+    document.getElementById('user-select').value = '';
+    render();
   }
   async function cancelReservation(idx) {
     const b = state.catalog[idx];
