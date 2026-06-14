@@ -390,14 +390,15 @@
   }
 
   // ====== BANNER AZIONE ======
-  function showActionMsg(bookTitle, type) {
+  function showActionMsg(bookTitle, bookAuthor, type) {
     const el = document.getElementById('action-msg');
     const verbs = { prestito:'ha preso in prestito', prenotazione:'si \u00E8 prenotato/a per', restituzione_richiesta:'vuole restituire' };
-    const txt = (state.currentUser||'')+' '+(verbs[type]||'ha aggiornato')+': "'+bookTitle+'"';
+    const bookLabel = bookAuthor ? '"'+bookTitle+'" di '+bookAuthor : '"'+bookTitle+'"';
+    const txt = (state.currentUser||'')+' '+(verbs[type]||'ha aggiornato')+': '+bookLabel;
     let html = '<p>Vuoi avvisare il bibliotecario?</p><div class="btn-row">';
     const wa = encodeURIComponent('\uD83D\uDCDA '+txt);
     html += '<a class="btn btn-primary" href="https://wa.me/'+ADMIN_WHATSAPP+'?text='+wa+'" target="_blank" rel="noopener">Invia su WhatsApp</a>';
-    html += '<button class="btn" onclick="copyMsg(\''+txt.replace(/'/g,"\\'")+'\')">Copia messaggio</button>';
+    html += '<button class="btn" onclick="copyMsg(\''+txt.replace(/\\/g,'\\\\').replace(/'/g,"\\'")+'\')">Copia messaggio</button>';
     html += '<button class="btn btn-secondary" onclick="document.getElementById(\'action-msg\').hidden=true">Chiudi</button></div>';
     el.innerHTML = html; el.hidden = false;
     el.scrollIntoView({ behavior:'smooth', block:'nearest' });
@@ -417,7 +418,7 @@
     if (!b.queue) b.queue = [];
     await saveCatalog();
     await addNotification('prestito', state.currentUser, b.title);
-    showActionMsg(b.title, 'prestito');
+    showActionMsg(b.title, b.author, 'prestito');
     showStatus('Hai preso \u201C'+b.title+'\u201D. Buona lettura!', 'success');
   }
   async function requestReturn(idx) {
@@ -426,7 +427,7 @@
     b.returnRequested = true;
     await saveCatalog();
     await addNotification('restituzione_richiesta', state.currentUser, b.title);
-    showActionMsg(b.title, 'restituzione_richiesta');
+    showActionMsg(b.title, b.author, 'restituzione_richiesta');
     showStatus('Restituzione segnalata. Avvisa il bibliotecario!', 'success');
   }
   async function reserveBook(idx) {
@@ -438,7 +439,9 @@
     b.queue.push(state.currentUser);
     await saveCatalog();
     await addNotification('prenotazione', state.currentUser, b.title);
-    showActionMsg(b.title, 'prenotazione');
+    const bookLabel = b.author ? '"'+b.title+'" di '+b.author : '"'+b.title+'"';
+    const txt = state.currentUser+' si \u00E8 prenotato/a per: '+bookLabel;
+    window.open('https://wa.me/'+ADMIN_WHATSAPP+'?text='+encodeURIComponent('\uD83D\uDCDA '+txt), '_blank', 'noopener');
     showStatus('Sei in lista per \u201C'+b.title+'\u201D!', 'success');
   }
   async function cancelReservation(idx) {
