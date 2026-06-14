@@ -165,7 +165,7 @@
       <div id="admin-tools" hidden>
         <label for="md-upload">Carica / aggiorna elenco libri (.md)</label>
         <input type="file" id="md-upload" accept=".md,text/markdown,text/plain" />
-        <p class="hint">Una riga per libro &mdash; formato: Titolo | Autore</p>
+        <p class="hint">Una riga per libro &mdash; formato: Autore | Titolo</p>
       </div>
       <div id="notif-panel" hidden></div>
     </div>
@@ -292,7 +292,7 @@
       let title, author;
       if (line.includes('|')) {
         const parts = line.split('|');
-        title = parts[0].trim(); author = parts.slice(1).join('|').trim();
+        author = parts[0].trim(); title = parts.slice(1).join('|').trim();
       } else {
         const idx = line.lastIndexOf(' - ');
         if (idx > -1) { title = line.slice(0,idx).trim(); author = line.slice(idx+3).trim(); }
@@ -393,9 +393,9 @@
   // ====== BANNER AZIONE ======
   function showActionMsg(bookTitle, bookAuthor, type) {
     const el = document.getElementById('action-msg');
-    const verbs = { prestito:'ha preso in prestito', prenotazione:'si \u00E8 prenotato/a per', restituzione_richiesta:'vuole restituire' };
-    const bookLabel = bookAuthor ? '"'+bookTitle+'" di '+bookAuthor : '"'+bookTitle+'"';
-    const txt = (state.currentUser||'')+' '+(verbs[type]||'ha aggiornato')+': '+bookLabel;
+    const verbs = { prestito:'ha chiesto in prestito', prenotazione:'si \u00E8 prenotato/a per', restituzione_richiesta:'vuole restituire' };
+    const bookLabel = bookAuthor ? bookTitle+' di '+bookAuthor : bookTitle;
+    const txt = (state.currentUser||'')+' '+(verbs[type]||'ha aggiornato')+' '+bookLabel;
     let html = '<p>Vuoi avvisare il bibliotecario?</p><div class="btn-row">';
     const wa = encodeURIComponent('\uD83D\uDCDA '+txt);
     html += '<a class="btn btn-primary" href="https://wa.me/'+ADMIN_WHATSAPP+'?text='+wa+'" target="_blank" rel="noopener">Invia su WhatsApp</a>';
@@ -416,8 +416,7 @@
     if (!state.currentUser || b.status !== 'disponibile') return;
     if (state.catalog.some(x => x.borrower === state.currentUser || (x.queue||[]).includes(state.currentUser))) return;
     // WA va aperto prima degli await — dopo perdono il contesto del gesto e vengono bloccati
-    const bookLabel = b.author ? '"'+b.title+'" di '+b.author : '"'+b.title+'"';
-    const txt = state.currentUser+' ha preso in prestito: '+bookLabel;
+    const txt = state.currentUser+' ha chiesto in prestito '+(b.title||'')+(b.author ? ' di '+b.author : '');
     window.open('https://wa.me/'+ADMIN_WHATSAPP+'?text='+encodeURIComponent('\uD83D\uDCDA '+txt), '_blank', 'noopener');
     b.status = 'in_prestito'; b.borrower = state.currentUser; b.requestDate = todayISO();
     if (!b.queue) b.queue = [];
@@ -428,8 +427,7 @@
   async function requestReturn(idx) {
     const b = state.catalog[idx];
     if (!state.currentUser || b.borrower !== state.currentUser) return;
-    const bookLabel = b.author ? '"'+b.title+'" di '+b.author : '"'+b.title+'"';
-    const txt = state.currentUser+' vuole restituire: '+bookLabel;
+    const txt = state.currentUser+' vuole restituire '+(b.title||'')+(b.author ? ' di '+b.author : '');
     window.open('https://wa.me/'+ADMIN_WHATSAPP+'?text='+encodeURIComponent('\uD83D\uDCDA '+txt), '_blank', 'noopener');
     b.returnRequested = true;
     await saveCatalog();
@@ -442,8 +440,7 @@
     if (state.catalog.some(x => x.borrower === state.currentUser || (x.queue||[]).includes(state.currentUser))) return;
     if (!b.queue) b.queue = [];
     if (b.queue.includes(state.currentUser)) return;
-    const bookLabel = b.author ? '"'+b.title+'" di '+b.author : '"'+b.title+'"';
-    const txt = state.currentUser+' si \u00E8 prenotato/a per: '+bookLabel;
+    const txt = state.currentUser+' si \u00E8 prenotato/a per '+(b.title||'')+(b.author ? ' di '+b.author : '');
     window.open('https://wa.me/'+ADMIN_WHATSAPP+'?text='+encodeURIComponent('\uD83D\uDCDA '+txt), '_blank', 'noopener');
     b.queue.push(state.currentUser);
     await saveCatalog();
