@@ -444,8 +444,8 @@
   }
   async function reserveBook(idx) {
     const b = state.catalog[idx];
-    if (!state.currentUser || b.borrower === state.currentUser) return;
-    if (state.catalog.some(x => (x.queue||[]).includes(state.currentUser))) return;
+    if (!state.currentUser || b.status !== 'in_prestito') return;
+    if (state.catalog.some(x => x.borrower === state.currentUser || (x.queue||[]).includes(state.currentUser))) return;
     if (!b.queue) b.queue = [];
     if (b.queue.includes(state.currentUser)) return;
     const txt = state.currentUser+' si \u00E8 prenotato/a per '+(b.title||'')+(b.author ? ' di '+b.author : '');
@@ -532,7 +532,6 @@
     if (!isLoaned) {
       if (!state.currentUser) actionBtn = '<button class="btn btn-secondary" disabled>Richiedi</button>';
       else if (isMyBook) actionBtn = '<button class="btn btn-secondary" disabled>Tuo in prestito</button>';
-      else if (userHasBook && !userHasReservation) actionBtn = '<button class="btn btn-blue" onclick="reserveBook('+idx+')">Prenota</button>';
       else if (userHasItem) actionBtn = '<button class="btn btn-secondary" disabled>Richiedi</button>';
       else actionBtn = '<button class="btn btn-primary" onclick="requestBook('+idx+')">Richiedi</button>';
     } else {
@@ -544,7 +543,7 @@
         actionBtn = '<button class="btn btn-secondary" disabled>Prenota</button>';
       } else if (userInQueue) {
         actionBtn = '<button class="btn btn-danger" onclick="cancelReservation('+idx+')">Annulla prenotazione</button>';
-      } else if (userHasReservation) {
+      } else if (userHasItem) {
         actionBtn = '<button class="btn btn-secondary" disabled>Prenota</button>';
       } else {
         actionBtn = '<button class="btn btn-blue" onclick="reserveBook('+idx+')">Prenota</button>';
