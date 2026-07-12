@@ -108,7 +108,7 @@
     <div class="lib-rule"></div>
     <p class="lib-sub">registro dei prestiti</p>
   </div>
-  <p class="intro">Seleziona il tuo nome, scegli un libro e premi &laquo;Richiedi&raquo;. Se il libro &egrave; gi&agrave; in prestito puoi metterti in lista con &laquo;Prenota&raquo;.</p>
+  <p class="intro">Seleziona il tuo nome, scegli un libro e premi &laquo;Richiedi&raquo;. Se il libro &egrave; gi&agrave; in prestito puoi metterti in lista con &laquo;Prenota&raquo;. Puoi avere al massimo due libri/prenotazioni insieme, cos&igrave; puoi gi&agrave; richiedere il prossimo libro quando restituisci quello che hai.</p>
 </header>
 
 <main>
@@ -135,6 +135,7 @@
       <option>Maurizio</option>
       <option>Sara</option>
     </select>
+    <p id="user-count" class="hint" hidden></p>
   </div>
 
   <div id="catalog-status" class="status"></div>
@@ -203,6 +204,7 @@
   // ====== CONFIGURAZIONE APP ======
   const ADMIN_PIN      = '180240';
   const ADMIN_WHATSAPP = '393346740647';
+  const MAX_USER_ITEMS = 2; // un lettore può avere al massimo questo numero di libri/prenotazioni insieme (es. 1 in prestito + 1 nuovo)
 
   // ====== STATO ======
   let state = { currentUser: null, isAdmin: false, catalog: [], notifications: [] };
@@ -278,10 +280,40 @@
   function keyFor(b) {
     return (b.title||'').trim().toLowerCase()+'|'+(b.author||'').trim().toLowerCase();
   }
+  function countUserItems(user) {
+    // conta libri in prestito + prenotazioni in coda di questo lettore, su tutto il catalogo
+    if (!user) return 0;
+    let n = 0;
+    state.catalog.forEach(x => {
+      if (x.borrower === user) n++;
+      if ((x.queue||[]).includes(user)) n++;
+    });
+    return n;
+  }
+  function userItemTitles(user) {
+    // elenca i titoli che contano per il limite di questo lettore (utile per capire perch\u00E9 \u00E8 bloccato)
+    if (!user) return [];
+    const titles = [];
+    state.catalog.forEach(x => {
+      if (x.borrower === user) titles.push(x.title);
+      if ((x.queue||[]).includes(user)) titles.push(x.title+' (prenotato)');
+    });
+    return titles;
+  }
   function showStatus(msg, type) {
     const el = document.getElementById('catalog-status');
     el.textContent = msg; el.className = 'status status-'+type;
     setTimeout(() => { el.textContent = ''; el.className = 'status'; }, 4500);
+  }
+  function renderUserCount() {
+    const el = document.getElementById('user-count');
+    if (!state.currentUser) { el.hidden = true; return; }
+    const items = userItemTitles(state.currentUser);
+    el.hidden = false;
+    const base = state.currentUser+': '+items.length+'/'+MAX_USER_ITEMS;
+    el.textContent = items.length >= MAX_USER_ITEMS
+      ? base+' \u2014 limite raggiunto ('+items.join(', ')+')'
+      : (items.length ? base+' \u2014 '+items.join(', ') : base+' libri/prenotazioni');
   }
 
   // ====== PARSING .MD ======
@@ -416,17 +448,17 @@
   async function requestBook(idx) {
     const b = state.catalog[idx];
     if (!state.currentUser || b.status !== 'disponibile') return;
-    if (state.catalog.some(x => x.borrower === state.currentUser || (x.queue||[]).includes(state.currentUser))) return;
+    if (countUserItems(state.currentUser) >= MAX_USER_ITEMS) return;
     // WA va aperto prima degli await — dopo perdono il contesto del gesto e vengono bloccati
-    const txt = state.currentUser+' ha chiesto in prestito '+(b.title||'')+(b.author ? ' di '+b.author : '');
+    const myLoans = state.catalog.filter(x => x.borrower === state.currentUser).map(x => x.title);
+    const extra = myLoans.length ? ' (ha gi\u00E0 in prestito: '+myLoans.join(', ')+')' : '';
+    const txt = state.currentUser+' ha chiesto in prestito '+(b.title||'')+(b.author ? ' di '+b.author : '')+extra;
     window.open('https://wa.me/'+ADMIN_WHATSAPP+'?text='+encodeURIComponent('\uD83D\uDCDA '+txt), '_blank', 'noopener');
     b.status = 'in_prestito'; b.borrower = state.currentUser; b.requestDate = todayISO();
     if (!b.queue) b.queue = [];
     await saveCatalog();
     await addNotification('prestito', state.currentUser, b.title);
     showStatus('Hai preso \u201C'+b.title+'\u201D. Buona lettura!', 'success');
-    state.currentUser = null;
-    document.getElementById('user-select').value = '';
     render();
   }
   async function requestReturn(idx) {
@@ -438,24 +470,22 @@
     await saveCatalog();
     await addNotification('restituzione_richiesta', state.currentUser, b.title);
     showStatus('Restituzione segnalata. Avvisa il bibliotecario!', 'success');
-    state.currentUser = null;
-    document.getElementById('user-select').value = '';
     render();
   }
   async function reserveBook(idx) {
     const b = state.catalog[idx];
     if (!state.currentUser || b.status !== 'in_prestito') return;
-    if (state.catalog.some(x => x.borrower === state.currentUser || (x.queue||[]).includes(state.currentUser))) return;
+    if (countUserItems(state.currentUser) >= MAX_USER_ITEMS) return;
     if (!b.queue) b.queue = [];
     if (b.queue.includes(state.currentUser)) return;
-    const txt = state.currentUser+' si \u00E8 prenotato/a per '+(b.title||'')+(b.author ? ' di '+b.author : '');
+    const myLoans = state.catalog.filter(x => x.borrower === state.currentUser).map(x => x.title);
+    const extra = myLoans.length ? ' (ha gi\u00E0 in prestito: '+myLoans.join(', ')+')' : '';
+    const txt = state.currentUser+' si \u00E8 prenotato/a per '+(b.title||'')+(b.author ? ' di '+b.author : '')+extra;
     window.open('https://wa.me/'+ADMIN_WHATSAPP+'?text='+encodeURIComponent('\uD83D\uDCDA '+txt), '_blank', 'noopener');
     b.queue.push(state.currentUser);
     await saveCatalog();
     await addNotification('prenotazione', state.currentUser, b.title);
     showStatus('Sei in lista per \u201C'+b.title+'\u201D!', 'success');
-    state.currentUser = null;
-    document.getElementById('user-select').value = '';
     render();
   }
   async function cancelReservation(idx) {
@@ -491,6 +521,7 @@
   // ====== RENDERING ======
   function render() {
     renderNotifBadge();
+    renderUserCount();
     const listEl = document.getElementById('book-list');
     if (!state.catalog.length) {
       listEl.innerHTML = '<p class="empty">Nessun libro in catalogo.<br>L\'amministratore deve caricare l\'elenco (.md).</p>';
@@ -507,12 +538,10 @@
   function bookCardHTML(b, idx) {
     const isLoaned = b.status === 'in_prestito';
     const queue = b.queue || [];
-    const userInQueue        = state.currentUser && queue.includes(state.currentUser);
-    const userHasBook        = state.currentUser && state.catalog.some(x => x.borrower === state.currentUser);
-    const userHasReservation = state.currentUser && state.catalog.some(x => (x.queue||[]).includes(state.currentUser));
-    const userHasItem        = userHasBook || userHasReservation;
-    const isMyBook           = state.currentUser && b.borrower === state.currentUser;
-    const returnReq          = !!b.returnRequested;
+    const userInQueue = state.currentUser && queue.includes(state.currentUser);
+    const atLimit      = state.currentUser && countUserItems(state.currentUser) >= MAX_USER_ITEMS;
+    const isMyBook     = state.currentUser && b.borrower === state.currentUser;
+    const returnReq    = !!b.returnRequested;
 
     const statusHTML = isLoaned
       ? '<div class="stamp">In prestito a '+esc(b.borrower)+'<br>dal '+fmtDate(b.requestDate)+'</div>'
@@ -532,7 +561,7 @@
     if (!isLoaned) {
       if (!state.currentUser) actionBtn = '<button class="btn btn-secondary" disabled>Richiedi</button>';
       else if (isMyBook) actionBtn = '<button class="btn btn-secondary" disabled>Tuo in prestito</button>';
-      else if (userHasItem) actionBtn = '<button class="btn btn-secondary" disabled>Richiedi</button>';
+      else if (atLimit) actionBtn = '<button class="btn btn-secondary" disabled title="Massimo '+MAX_USER_ITEMS+' libri/prenotazioni a testa">Limite raggiunto</button>';
       else actionBtn = '<button class="btn btn-primary" onclick="requestBook('+idx+')">Richiedi</button>';
     } else {
       if (isMyBook) {
@@ -543,8 +572,8 @@
         actionBtn = '<button class="btn btn-secondary" disabled>Prenota</button>';
       } else if (userInQueue) {
         actionBtn = '<button class="btn btn-danger" onclick="cancelReservation('+idx+')">Annulla prenotazione</button>';
-      } else if (userHasItem) {
-        actionBtn = '<button class="btn btn-secondary" disabled>Prenota</button>';
+      } else if (atLimit) {
+        actionBtn = '<button class="btn btn-secondary" disabled title="Massimo '+MAX_USER_ITEMS+' libri/prenotazioni a testa">Limite raggiunto</button>';
       } else {
         actionBtn = '<button class="btn btn-blue" onclick="reserveBook('+idx+')">Prenota</button>';
       }
