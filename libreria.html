@@ -97,6 +97,16 @@
   #config-error { background: var(--sienna-bg); border: 2px solid var(--sienna); border-radius: 2px; padding: 1.2rem 1.4rem; margin-bottom: 1.5rem; font-size: 0.9rem; line-height: 1.6; }
   #config-error strong { display: block; margin-bottom: 0.4rem; font-family: var(--font-mono); text-transform: uppercase; letter-spacing: 0.08em; }
   #config-error code { background: rgba(0,0,0,0.08); padding: 0.1em 0.35em; border-radius: 2px; font-size: 0.85em; }
+
+  /* ====== GENERI ====== */
+  .genre-badge { display: inline-block; font-family: var(--font-mono); font-size: 0.7rem; letter-spacing: 0.07em; text-transform: uppercase; padding: 0.18rem 0.55rem; border-radius: 2px; margin-bottom: 0.6rem; border: 1px solid currentColor; }
+  .genre-filter-bar { display: flex; flex-wrap: wrap; gap: 0.4rem; align-items: center; margin-bottom: 1rem; padding: 0.65rem 0.9rem; background: var(--card); border: 1px solid var(--rule); border-radius: 2px; }
+  .genre-filter-label { font-family: var(--font-mono); font-size: 0.68rem; text-transform: uppercase; letter-spacing: 0.1em; color: var(--ink-muted); width: 100%; margin-bottom: 0.15rem; }
+  .genre-pill { font-family: var(--font-mono); font-size: 0.7rem; letter-spacing: 0.05em; text-transform: uppercase; padding: 0.28rem 0.6rem; border-radius: 2px; cursor: pointer; border: 1px solid currentColor; background: transparent; transition: opacity 0.15s; line-height: 1.35; }
+  .genre-pill:hover { opacity: 0.72; }
+  .genre-pill-all { font-family: var(--font-mono); font-size: 0.7rem; letter-spacing: 0.05em; text-transform: uppercase; padding: 0.28rem 0.6rem; border-radius: 2px; cursor: pointer; border: 1px solid var(--rule); background: transparent; color: var(--ink-muted); transition: opacity 0.15s; line-height: 1.35; }
+  .genre-pill-all:hover { opacity: 0.72; }
+  .genre-pill-all.active { color: var(--ink); border-color: var(--ink); font-weight: bold; }
 </style>
 </head>
 <body>
@@ -149,6 +159,8 @@
     <span id="search-count"></span>
   </div>
 
+  <div id="genre-filter-bar" class="genre-filter-bar" hidden></div>
+
   <div class="catalog-header">
     <h2>Catalogo</h2>
     <button id="refresh-btn" class="btn">Aggiorna</button>
@@ -170,6 +182,8 @@
         <label for="md-upload">Carica / aggiorna elenco libri (.md)</label>
         <input type="file" id="md-upload" accept=".md,text/markdown,text/plain" />
         <p class="hint">Una riga per libro &mdash; formato: Autore | Titolo</p>
+        <button id="genre-btn" class="btn" style="margin-top:0.75rem;" onclick="assignMissingGenres()">Identifica generi</button>
+        <p class="hint">Assegna il genere letterario ai libri senza etichetta tramite AI. Si avvia anche automaticamente al caricamento del catalogo.</p>
       </div>
       <div id="notif-panel" hidden></div>
     </div>
@@ -209,10 +223,27 @@
   const ADMIN_WHATSAPP = '393346740647';
   const MAX_USER_ITEMS = 2; // un lettore può avere al massimo questo numero di libri/prenotazioni insieme (es. 1 in prestito + 1 nuovo)
 
+  // ====== GENERI ======
+  const GENRES = {
+    'Romanzo':              { color: '#3C5A48', bg: '#D8EAE0' },
+    'Giallo/Thriller':      { color: '#8B2020', bg: '#F2D8D8' },
+    'Fantasy/Fantascienza': { color: '#4A2A80', bg: '#E2D8F5' },
+    'Biografia':            { color: '#1E3A6A', bg: '#D0DCEE' },
+    'Saggistica':           { color: '#3A5A60', bg: '#CAE0E8' },
+    'Poesia':               { color: '#7A2060', bg: '#F2D8EC' },
+    'Storia':               { color: '#6A3A1A', bg: '#EAD8BC' },
+    'Classici':             { color: '#1A3A50', bg: '#C8DCE8' },
+    'Bambini/Ragazzi':      { color: '#4A6A1A', bg: '#D8EABC' },
+    'Narrativa Straniera':  { color: '#6A4A1A', bg: '#EAE0C4' },
+    'Altro':                { color: '#5A5A5A', bg: '#E0E0E0' }
+  };
+
   // ====== STATO ======
   let state = { currentUser: null, isAdmin: false, catalog: [], notifications: [] };
   let searchTerm     = '';
   let notifPanelOpen = false;
+  let genreFilter    = null;
+  let genresFetching = false;
   // Resetta sempre il nome al caricamento (il browser potrebbe ricordare la selezione precedente)
   document.getElementById('user-select').value = '';
 
@@ -344,8 +375,8 @@
     existing.forEach(b => map.set(keyFor(b), b));
     return parsed.map(p => {
       const old = map.get(keyFor(p));
-      if (old) return { title:p.title, author:p.author, status:old.status, borrower:old.borrower, requestDate:old.requestDate, queue:old.queue||[], returnRequested:old.returnRequested||false };
-      return { title:p.title, author:p.author, status:'disponibile', borrower:null, requestDate:null, queue:[], returnRequested:false };
+      if (old) return { title:p.title, author:p.author, status:old.status, borrower:old.borrower, requestDate:old.requestDate, queue:old.queue||[], returnRequested:old.returnRequested||false, genre:old.genre||null };
+      return { title:p.title, author:p.author, status:'disponibile', borrower:null, requestDate:null, queue:[], returnRequested:false, genre:null };
     });
   }
 
@@ -385,6 +416,17 @@
     const parsed = parseMarkdown(text);
     if (!parsed.length) { showStatus('Nessun libro trovato. Formato: Titolo | Autore', 'error'); e.target.value=''; return; }
     state.catalog = mergeCatalog(state.catalog, parsed);
+    const missing = state.catalog.filter(b => !b.genre);
+    if (missing.length) {
+      genresFetching = true;
+      const btn = document.getElementById('genre-btn');
+      if (btn) { btn.disabled = true; btn.textContent = 'Identificazione in corso…'; }
+      try { await fetchGenresForBooks(missing); } catch(err) { console.error(err); }
+      finally {
+        genresFetching = false;
+        if (btn) { btn.disabled = false; btn.textContent = 'Identifica generi'; }
+      }
+    }
     await saveCatalog();
     showStatus('Catalogo aggiornato: '+parsed.length+' libri.', 'success');
     e.target.value = '';
@@ -521,20 +563,98 @@
     window.open('https://www.google.com/search?q=' + q, '_blank', 'noopener');
   }
 
+  // ====== GENERI — IDENTIFICAZIONE AI ======
+  async function fetchGenresForBooks(books) {
+    const BATCH = 15;
+    for (let i = 0; i < books.length; i += BATCH) {
+      const batch = books.slice(i, i + BATCH);
+      const list  = batch.map((b, j) => (j+1)+'. "'+b.title+'"'+(b.author ? ' di '+b.author : '')).join('\n');
+      showStatus('Identificazione generi: '+Math.min(i+BATCH, books.length)+'/'+books.length+'…', 'success');
+      const prompt =
+        'Sei un esperto bibliotecario italiano. Per ogni libro elencato identifica il genere letterario principale.\n\n'+list+
+        '\n\nRispondi SOLO con un array JSON valido, senza testo aggiuntivo o backtick:\n[{"n":1,"genre":"Romanzo"},{"n":2,"genre":"Giallo/Thriller"},...]\n\n'+
+        'Generi disponibili (usa SOLO questi nomi esatti): Romanzo, Giallo/Thriller, Fantasy/Fantascienza, Biografia, Saggistica, Poesia, Storia, Classici, Bambini/Ragazzi, Narrativa Straniera, Altro';
+      try {
+        const res  = await fetch('https://api.anthropic.com/v1/messages', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ model: 'claude-sonnet-4-6', max_tokens: 1000, messages: [{ role: 'user', content: prompt }] })
+        });
+        if (!res.ok) throw new Error('HTTP '+res.status);
+        const data   = await res.json();
+        const text   = (data.content||[]).find(b => b.type==='text')?.text || '';
+        const clean  = text.replace(/```[a-z]*\s*|\s*```/g, '').trim();
+        const parsed = JSON.parse(clean);
+        parsed.forEach(item => {
+          const gi = i + item.n - 1;
+          if (gi < books.length) books[gi].genre = GENRES[item.genre] ? item.genre : 'Altro';
+        });
+      } catch(e) {
+        console.error('Errore batch generi:', e);
+        for (let j = i; j < Math.min(i+BATCH, books.length); j++) { if (!books[j].genre) books[j].genre = 'Altro'; }
+      }
+    }
+  }
+
+  async function assignMissingGenres() {
+    if (genresFetching) return;
+    const missing = state.catalog.filter(b => !b.genre);
+    if (!missing.length) { showStatus('Tutti i libri hanno già un genere assegnato.', 'success'); return; }
+    genresFetching = true;
+    const btn = document.getElementById('genre-btn');
+    if (btn) { btn.disabled = true; btn.textContent = 'Identificazione in corso…'; }
+    try {
+      await fetchGenresForBooks(missing);
+      await saveCatalog();
+      showStatus('Generi identificati per '+missing.length+' libri!', 'success');
+    } catch(e) { showStatus('Errore durante l\'identificazione dei generi.', 'error'); }
+    finally {
+      genresFetching = false;
+      if (btn) { btn.disabled = false; btn.textContent = 'Identifica generi'; }
+      render();
+    }
+  }
+
+  function setGenreFilter(genre) { genreFilter = genre; render(); }
+
+  function renderGenreFilter() {
+    const bar = document.getElementById('genre-filter-bar');
+    const counts = {};
+    state.catalog.forEach(b => { if (b.genre) counts[b.genre] = (counts[b.genre]||0)+1; });
+    const genres = Object.keys(counts).sort((a, b) => counts[b] - counts[a]);
+    if (!genres.length) { bar.hidden = true; return; }
+    bar.hidden = false;
+    let html = '<div class="genre-filter-label">Legenda &mdash; filtra per genere</div>';
+    html += '<button class="genre-pill-all'+(genreFilter===null?' active':'')+'" onclick="setGenreFilter(null)">Tutti ('+state.catalog.length+')</button>';
+    genres.forEach(g => {
+      const cfg = GENRES[g] || GENRES['Altro'];
+      const active = genreFilter === g;
+      html += '<button class="genre-pill'+(active?' active':'')+
+        '" style="color:'+cfg.color+';background:'+(active ? cfg.bg : 'transparent')+';border-color:'+cfg.color+
+        ';" onclick="setGenreFilter(\''+g.replace(/\\/g,'\\\\').replace(/'/g,"\\'")+'\')">'+esc(g)+' ('+counts[g]+')</button>';
+    });
+    bar.innerHTML = html;
+  }
+
   // ====== RENDERING ======
   function render() {
     renderNotifBadge();
     renderUserCount();
+    renderGenreFilter();
     const listEl = document.getElementById('book-list');
     if (!state.catalog.length) {
       listEl.innerHTML = '<p class="empty">Nessun libro in catalogo.<br>L\'amministratore deve caricare l\'elenco (.md).</p>';
       document.getElementById('search-count').textContent = ''; return;
     }
-    const filtered = searchTerm
+    let filtered = searchTerm
       ? state.catalog.filter(b => (b.title||'').toLowerCase().includes(searchTerm)||(b.author||'').toLowerCase().includes(searchTerm))
-      : state.catalog;
-    document.getElementById('search-count').textContent = searchTerm ? filtered.length+' di '+state.catalog.length : state.catalog.length+' libri';
-    if (!filtered.length) { listEl.innerHTML = '<p class="empty">Nessun risultato per «'+esc(searchTerm)+'».</p>'; return; }
+      : [...state.catalog];
+    if (genreFilter) filtered = filtered.filter(b => b.genre === genreFilter);
+    const countLabel = (searchTerm || genreFilter)
+      ? filtered.length+' di '+state.catalog.length+' libri'
+      : state.catalog.length+' libri';
+    document.getElementById('search-count').textContent = countLabel;
+    if (!filtered.length) { listEl.innerHTML = '<p class="empty">Nessun risultato.</p>'; return; }
     listEl.innerHTML = filtered.map(b => bookCardHTML(b, state.catalog.indexOf(b))).join('');
   }
 
@@ -545,6 +665,9 @@
     const atLimit      = state.currentUser && countUserItems(state.currentUser) >= MAX_USER_ITEMS;
     const isMyBook     = state.currentUser && b.borrower === state.currentUser;
     const returnReq    = !!b.returnRequested;
+
+    const gCfg     = b.genre && GENRES[b.genre] ? GENRES[b.genre] : null;
+    const genreHTML = gCfg ? '<div class="genre-badge" style="color:'+gCfg.color+';background:'+gCfg.bg+';border-color:'+gCfg.color+';">'+esc(b.genre)+'</div>' : '';
 
     const statusHTML = isLoaned
       ? '<div class="stamp">In prestito a '+esc(b.borrower)+'<br>dal '+fmtDate(b.requestDate)+'</div>'
@@ -591,6 +714,7 @@
     return '<div class="book-card">'+
       '<div class="book-title">'+esc(b.title)+'</div>'+
       '<div class="book-author">'+esc(b.author)+'</div>'+
+      genreHTML +
       statusHTML + returnFlagHTML + queueHTML +
       '<div class="book-actions">'+
         '<a class="btn btn-blue" href="https://www.google.com/search?q='+encodeURIComponent(b.title+' '+b.author+' libro trama')+'" target="_blank" rel="noopener">Cerca online</a>'+
