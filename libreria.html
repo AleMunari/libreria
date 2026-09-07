@@ -250,27 +250,11 @@
   // ====== AVVIO CON LISTENER IN TEMPO REALE ======
   if (isConfigured) {
     // Catalogo — si aggiorna automaticamente per tutti
-    catalogRef.onSnapshot(async doc => {
+    catalogRef.onSnapshot(doc => {
       state.catalog = doc.exists ? (doc.data().books || []) : [];
       render();
-      // Auto-identifica generi per i libri che ne sono privi
-      if (!genresFetching) {
-        const missing = state.catalog.filter(b => !b.genre);
-        if (missing.length) {
-          genresFetching = true;
-          const btn = document.getElementById('genre-btn');
-          if (btn) { btn.disabled = true; btn.textContent = 'Identificazione in corso\u2026'; }
-          try {
-            await fetchGenresForBooks(missing);
-            await saveCatalog();
-          } catch(e) { console.error('Auto-genre:', e); }
-          finally {
-            genresFetching = false;
-            if (btn) { btn.disabled = false; btn.textContent = 'Identifica generi'; }
-            render();
-          }
-        }
-      }
+      // Lancia il fetch generi in background senza bloccare il listener
+      autoFetchGenres().catch(e => console.error('Auto-genre:', e));
     }, err => { state.catalog = []; render(); });
 
     // Notifiche — si aggiornano automaticamente
@@ -571,6 +555,23 @@
   }
 
   // ====== GENERI — IDENTIFICAZIONE AI ======
+  async function autoFetchGenres() {
+    if (genresFetching) return;
+    const missing = state.catalog.filter(b => !b.genre);
+    if (!missing.length) return;
+    genresFetching = true;
+    const btn = document.getElementById('genre-btn');
+    if (btn) { btn.disabled = true; btn.textContent = 'Identificazione in corso\u2026'; }
+    try {
+      await fetchGenresForBooks(missing);
+      await saveCatalog();
+    } finally {
+      genresFetching = false;
+      if (btn) { btn.disabled = false; btn.textContent = 'Identifica generi'; }
+      render();
+    }
+  }
+
   async function fetchGenresForBooks(books) {
     const BATCH = 15;
     for (let i = 0; i < books.length; i += BATCH) {
