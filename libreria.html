@@ -122,6 +122,7 @@
     <select id="user-select">
       <option value="">&mdash; seleziona il tuo nome &mdash;</option>
       <option>Alessandro</option>
+      <option>Alessia</option>
       <option>Chiara B.</option>
       <option>Chiara G.</option>
       <option>Claudia</option>
@@ -129,11 +130,13 @@
       <option>Damiano</option>
       <option>Federico</option>
       <option>Gabriella</option>
+      <option>Graziella</option>
       <option>Ludovico</option>
       <option>Matteo</option>
       <option>Mauro</option>
       <option>Maurizio</option>
       <option>Sara</option>
+      <option>Umberto</option>
     </select>
     <p id="user-count" class="hint" hidden></p>
   </div>
@@ -291,7 +294,7 @@
     return n;
   }
   function userItemTitles(user) {
-    // elenca i titoli che contano per il limite di questo lettore (utile per capire perch\u00E9 \u00E8 bloccato)
+    // elenca i titoli che contano per il limite di questo lettore (utile per capire perché è bloccato)
     if (!user) return [];
     const titles = [];
     state.catalog.forEach(x => {
@@ -312,8 +315,8 @@
     el.hidden = false;
     const base = state.currentUser+': '+items.length+'/'+MAX_USER_ITEMS;
     el.textContent = items.length >= MAX_USER_ITEMS
-      ? base+' \u2014 limite raggiunto ('+items.join(', ')+')'
-      : (items.length ? base+' \u2014 '+items.join(', ') : base+' libri/prenotazioni');
+      ? base+' — limite raggiunto ('+items.join(', ')+')'
+      : (items.length ? base+' — '+items.join(', ') : base+' libri/prenotazioni');
   }
 
   // ====== PARSING .MD ======
@@ -358,7 +361,7 @@
       state.isAdmin = false; notifPanelOpen = false;
       document.getElementById('admin-tools').hidden = true;
       document.getElementById('notif-panel').hidden = true;
-      document.getElementById('admin-toggle').textContent = 'Modalit\u00E0 amministratore';
+      document.getElementById('admin-toggle').textContent = 'Modalità amministratore';
       render(); return;
     }
     document.getElementById('admin-pin-area').hidden = !document.getElementById('admin-pin-area').hidden;
@@ -369,7 +372,7 @@
       state.isAdmin = true;
       document.getElementById('admin-pin-area').hidden = true;
       document.getElementById('admin-tools').hidden = false;
-      document.getElementById('admin-toggle').textContent = 'Esci da modalit\u00E0 amministratore';
+      document.getElementById('admin-toggle').textContent = 'Esci da modalità amministratore';
       input.value = ''; renderNotifBadge(); render();
     } else { showStatus('PIN errato.', 'error'); input.value = ''; }
   }
@@ -413,9 +416,9 @@
     panel.hidden = false;
     const labels = { prestito:'Ha preso in prestito', prenotazione:'Ha prenotato', passaggio:'Passato automaticamente a', restituzione_richiesta:'Vuole restituire' };
     if (!state.notifications.length) {
-      panel.innerHTML = '<h3>Notifiche</h3><p style="color:var(--ink-muted);font-style:italic;font-size:0.9rem;">Nessuna attivit\u00E0 recente.</p>'; return;
+      panel.innerHTML = '<h3>Notifiche</h3><p style="color:var(--ink-muted);font-style:italic;font-size:0.9rem;">Nessuna attività recente.</p>'; return;
     }
-    panel.innerHTML = '<h3>Ultime attivit\u00E0</h3>' +
+    panel.innerHTML = '<h3>Ultime attività</h3>' +
       state.notifications.slice(0,25).map(n =>
         '<div class="notif-item"><div class="notif-dot read"></div><div>'+
         '<span>'+esc(n.user)+' &mdash; '+(labels[n.type]||n.type)+' <em>'+esc(n.bookTitle)+'</em></span>'+
@@ -427,11 +430,11 @@
   // ====== BANNER AZIONE ======
   function showActionMsg(bookTitle, bookAuthor, type) {
     const el = document.getElementById('action-msg');
-    const verbs = { prestito:'ha chiesto in prestito', prenotazione:'si \u00E8 prenotato/a per', restituzione_richiesta:'vuole restituire' };
+    const verbs = { prestito:'ha chiesto in prestito', prenotazione:'si è prenotato/a per', restituzione_richiesta:'vuole restituire' };
     const bookLabel = bookAuthor ? bookTitle+' di '+bookAuthor : bookTitle;
     const txt = (state.currentUser||'')+' '+(verbs[type]||'ha aggiornato')+' '+bookLabel;
     let html = '<p>Vuoi avvisare il bibliotecario?</p><div class="btn-row">';
-    const wa = encodeURIComponent('\uD83D\uDCDA '+txt);
+    const wa = encodeURIComponent('📚 '+txt);
     html += '<a class="btn btn-primary" href="https://wa.me/'+ADMIN_WHATSAPP+'?text='+wa+'" target="_blank" rel="noopener">Invia su WhatsApp</a>';
     html += '<button class="btn" onclick="copyMsg(\''+txt.replace(/\\/g,'\\\\').replace(/'/g,"\\'")+'\')">Copia messaggio</button>';
     html += '<button class="btn btn-secondary" onclick="document.getElementById(\'action-msg\').hidden=true">Chiudi</button></div>';
@@ -439,7 +442,7 @@
     el.scrollIntoView({ behavior:'smooth', block:'nearest' });
   }
   function copyMsg(txt) {
-    navigator.clipboard.writeText('\uD83D\uDCDA '+txt)
+    navigator.clipboard.writeText('📚 '+txt)
       .then(() => showStatus('Messaggio copiato!', 'success'))
       .catch(() => showStatus(txt, 'success'));
   }
@@ -451,21 +454,21 @@
     if (countUserItems(state.currentUser) >= MAX_USER_ITEMS) return;
     // WA va aperto prima degli await — dopo perdono il contesto del gesto e vengono bloccati
     const myLoans = state.catalog.filter(x => x.borrower === state.currentUser).map(x => x.title);
-    const extra = myLoans.length ? ' (ha gi\u00E0 in prestito: '+myLoans.join(', ')+')' : '';
+    const extra = myLoans.length ? ' (ha già in prestito: '+myLoans.join(', ')+')' : '';
     const txt = state.currentUser+' ha chiesto in prestito '+(b.title||'')+(b.author ? ' di '+b.author : '')+extra;
-    window.open('https://wa.me/'+ADMIN_WHATSAPP+'?text='+encodeURIComponent('\uD83D\uDCDA '+txt), '_blank', 'noopener');
+    window.open('https://wa.me/'+ADMIN_WHATSAPP+'?text='+encodeURIComponent('📚 '+txt), '_blank', 'noopener');
     b.status = 'in_prestito'; b.borrower = state.currentUser; b.requestDate = todayISO();
     if (!b.queue) b.queue = [];
     await saveCatalog();
     await addNotification('prestito', state.currentUser, b.title);
-    showStatus('Hai preso \u201C'+b.title+'\u201D. Buona lettura!', 'success');
+    showStatus('Hai preso "'+b.title+'". Buona lettura!', 'success');
     render();
   }
   async function requestReturn(idx) {
     const b = state.catalog[idx];
     if (!state.currentUser || b.borrower !== state.currentUser) return;
     const txt = state.currentUser+' vuole restituire '+(b.title||'')+(b.author ? ' di '+b.author : '');
-    window.open('https://wa.me/'+ADMIN_WHATSAPP+'?text='+encodeURIComponent('\uD83D\uDCDA '+txt), '_blank', 'noopener');
+    window.open('https://wa.me/'+ADMIN_WHATSAPP+'?text='+encodeURIComponent('📚 '+txt), '_blank', 'noopener');
     b.returnRequested = true;
     await saveCatalog();
     await addNotification('restituzione_richiesta', state.currentUser, b.title);
@@ -479,13 +482,13 @@
     if (!b.queue) b.queue = [];
     if (b.queue.includes(state.currentUser)) return;
     const myLoans = state.catalog.filter(x => x.borrower === state.currentUser).map(x => x.title);
-    const extra = myLoans.length ? ' (ha gi\u00E0 in prestito: '+myLoans.join(', ')+')' : '';
-    const txt = state.currentUser+' si \u00E8 prenotato/a per '+(b.title||'')+(b.author ? ' di '+b.author : '')+extra;
-    window.open('https://wa.me/'+ADMIN_WHATSAPP+'?text='+encodeURIComponent('\uD83D\uDCDA '+txt), '_blank', 'noopener');
+    const extra = myLoans.length ? ' (ha già in prestito: '+myLoans.join(', ')+')' : '';
+    const txt = state.currentUser+' si è prenotato/a per '+(b.title||'')+(b.author ? ' di '+b.author : '')+extra;
+    window.open('https://wa.me/'+ADMIN_WHATSAPP+'?text='+encodeURIComponent('📚 '+txt), '_blank', 'noopener');
     b.queue.push(state.currentUser);
     await saveCatalog();
     await addNotification('prenotazione', state.currentUser, b.title);
-    showStatus('Sei in lista per \u201C'+b.title+'\u201D!', 'success');
+    showStatus('Sei in lista per "'+b.title+'"!', 'success');
     render();
   }
   async function cancelReservation(idx) {
@@ -504,10 +507,10 @@
       const next = b.queue.shift();
       b.borrower = next; b.requestDate = todayISO(); b.status = 'in_prestito';
       await addNotification('passaggio', next, b.title);
-      showStatus('\u201C'+b.title+'\u201D passato a '+next+'.', 'success');
+      showStatus('"'+b.title+'" passato a '+next+'.', 'success');
     } else {
       b.status = 'disponibile'; b.borrower = null; b.requestDate = null;
-      showStatus('\u201C'+b.title+'\u201D \u00E8 di nuovo disponibile.', 'success');
+      showStatus('"'+b.title+'" è di nuovo disponibile.', 'success');
     }
     await saveCatalog();
   }
@@ -531,7 +534,7 @@
       ? state.catalog.filter(b => (b.title||'').toLowerCase().includes(searchTerm)||(b.author||'').toLowerCase().includes(searchTerm))
       : state.catalog;
     document.getElementById('search-count').textContent = searchTerm ? filtered.length+' di '+state.catalog.length : state.catalog.length+' libri';
-    if (!filtered.length) { listEl.innerHTML = '<p class="empty">Nessun risultato per \u00AB'+esc(searchTerm)+'\u00BB.</p>'; return; }
+    if (!filtered.length) { listEl.innerHTML = '<p class="empty">Nessun risultato per «'+esc(searchTerm)+'».</p>'; return; }
     listEl.innerHTML = filtered.map(b => bookCardHTML(b, state.catalog.indexOf(b))).join('');
   }
 
@@ -548,7 +551,7 @@
       : '<div class="line-available">Disponibile</div>';
 
     const returnFlagHTML = (isLoaned && returnReq && state.isAdmin)
-      ? '<div class="queue-line" style="color:var(--sienna);background:var(--sienna-bg);border-color:var(--sienna);">\u26A0\uFE0F '+esc(b.borrower)+' vuole restituirlo</div>'
+      ? '<div class="queue-line" style="color:var(--sienna);background:var(--sienna-bg);border-color:var(--sienna);">⚠️ '+esc(b.borrower)+' vuole restituirlo</div>'
       : '';
 
     let queueHTML = '';
@@ -581,7 +584,7 @@
 
     let returnBtn = '';
     if (isLoaned && state.isAdmin) {
-      const label = queue.length > 0 ? 'Restituito \u2192 passa a '+queue[0] : 'Segna come restituito';
+      const label = queue.length > 0 ? 'Restituito → passa a '+queue[0] : 'Segna come restituito';
       returnBtn = '<button class="btn" onclick="returnBook('+idx+')">'+esc(label)+'</button>';
     }
 
