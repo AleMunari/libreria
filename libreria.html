@@ -238,6 +238,39 @@
     'Altro':                { color: '#5A5A5A', bg: '#E0E0E0' }
   };
 
+  // Parole-chiave Google Books / Open Library → genere italiano
+  const GENRE_KEYWORD_MAP = {
+    'fiction':         'Romanzo',          'novel':          'Romanzo',
+    'romance':         'Romanzo',          'drama':          'Romanzo',
+    'mystery':         'Giallo/Thriller',  'detective':      'Giallo/Thriller',
+    'thriller':        'Giallo/Thriller',  'crime':          'Giallo/Thriller',
+    'suspense':        'Giallo/Thriller',  'horror':         'Giallo/Thriller',
+    'science fiction': 'Fantasy/Fantascienza', 'fantasy':    'Fantasy/Fantascienza',
+    'biography':       'Biografia',        'autobiography':  'Biografia',
+    'memoir':          'Biografia',
+    'history':         'Storia',           'historical':     'Storia',
+    'poetry':          'Poesia',           'poems':          'Poesia',
+    'classic':         'Classici',         'literary':       'Classici',
+    'juvenile':        'Bambini/Ragazzi',  'young adult':    'Bambini/Ragazzi',
+    'children':        'Bambini/Ragazzi',
+    'philosophy':      'Saggistica',       'psychology':     'Saggistica',
+    'social science':  'Saggistica',       'politics':       'Saggistica',
+    'nonfiction':      'Saggistica',       'non-fiction':    'Saggistica',
+    'essay':           'Saggistica',       'economics':      'Saggistica',
+    // Italiano (Open Library + edizioni IT Google Books)
+    'narrativa':       'Romanzo',          'romanzo':        'Romanzo',
+    'giallo':          'Giallo/Thriller',  'poliziesco':     'Giallo/Thriller',
+    'noir':            'Giallo/Thriller',
+    'fantascienza':    'Fantasy/Fantascienza', 'fantastico':  'Fantasy/Fantascienza',
+    'biografia':       'Biografia',        'autobiografia':  'Biografia',
+    'memorie':         'Biografia',
+    'storia':          'Storia',           'storico':        'Storia',
+    'poesia':          'Poesia',           'versi':          'Poesia',
+    'classici':        'Classici',
+    'ragazzi':         'Bambini/Ragazzi',  'bambini':        'Bambini/Ragazzi',
+    'saggistica':      'Saggistica',       'saggio':         'Saggistica',
+  };
+
   // ====== STATO ======
   let state = { currentUser: null, isAdmin: false, catalog: [], notifications: [] };
   let searchTerm     = '';
@@ -572,35 +605,58 @@
     }
   }
 
-  async function fetchGenresForBooks(books) {
-    const BATCH = 15;
-    for (let i = 0; i < books.length; i += BATCH) {
-      const batch = books.slice(i, i + BATCH);
-      const list  = batch.map((b, j) => (j+1)+'. "'+b.title+'"'+(b.author ? ' di '+b.author : '')).join('\n');
-      showStatus('Identificazione generi: '+Math.min(i+BATCH, books.length)+'/'+books.length+'…', 'success');
-      const prompt =
-        'Sei un esperto bibliotecario italiano. Per ogni libro elencato identifica il genere letterario principale.\n\n'+list+
-        '\n\nRispondi SOLO con un array JSON valido, senza testo aggiuntivo o backtick:\n[{"n":1,"genre":"Romanzo"},{"n":2,"genre":"Giallo/Thriller"},...]\n\n'+
-        'Generi disponibili (usa SOLO questi nomi esatti): Romanzo, Giallo/Thriller, Fantasy/Fantascienza, Biografia, Saggistica, Poesia, Storia, Classici, Bambini/Ragazzi, Narrativa Straniera, Altro';
-      try {
-        const res  = await fetch('https://api.anthropic.com/v1/messages', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ model: 'claude-sonnet-4-6', max_tokens: 1000, messages: [{ role: 'user', content: prompt }] })
-        });
-        if (!res.ok) throw new Error('HTTP '+res.status);
-        const data   = await res.json();
-        const text   = (data.content||[]).find(b => b.type==='text')?.text || '';
-        const clean  = text.replace(/```[a-z]*\s*|\s*```/g, '').trim();
-        const parsed = JSON.parse(clean);
-        parsed.forEach(item => {
-          const gi = i + item.n - 1;
-          if (gi < books.length) books[gi].genre = GENRES[item.genre] ? item.genre : 'Altro';
-        });
-      } catch(e) {
-        console.error('Errore batch generi:', e);
-        for (let j = i; j < Math.min(i+BATCH, books.length); j++) { if (!books[j].genre) books[j].genre = 'Altro'; }
+  function mapToItalianGenre(categories) {
+    if (!categories || !categories.length) return null;
+    for (const cat of categories) {
+      const lower = (cat || '').toLowerCase();
+      for (const [kw, genre] of Object.entries(GENRE_KEYWORD_MAP)) {
+        if (lower.includes(kw)) return genre;
       }
+    }
+    return null;
+  }
+
+  async function fetchGenreOnline(title, author) {
+    const q = encodeURIComponent((title || '').trim() + (author ? ' ' + author.trim() : ''));
+    // 1. Google Books — edizione italiana
+    try {
+      const r = await fetch('https://www.googleapis.com/books/v1/volumes?q='+q+'&maxResults=3&langRestrict=it&fields=items/volumeInfo/categories');
+      if (r.ok) {
+        const d = await r.json();
+        for (const item of (d.items || [])) { const g = mapToItalianGenre(item.volumeInfo?.categories); if (g) return g; }
+      }
+    } catch(e) {}
+    // 2. Google Books — qualsiasi lingua
+    try {
+      const r = await fetch('https://www.googleapis.com/books/v1/volumes?q='+q+'&maxResults=5&fields=items/volumeInfo/categories');
+      if (r.ok) {
+        const d = await r.json();
+        for (const item of (d.items || [])) { const g = mapToItalianGenre(item.volumeInfo?.categories); if (g) return g; }
+      }
+    } catch(e) {}
+    // 3. Open Library (fallback, ottimo per libri italiani)
+    try {
+      const tq = encodeURIComponent(title || '');
+      const aq = author ? '&author='+encodeURIComponent(author) : '';
+      const r = await fetch('https://openlibrary.org/search.json?title='+tq+aq+'&fields=subject&limit=3');
+      if (r.ok) {
+        const d = await r.json();
+        for (const doc of (d.docs || [])) { const g = mapToItalianGenre(doc.subject || []); if (g) return g; }
+      }
+    } catch(e) {}
+    return null;
+  }
+
+  async function fetchGenresForBooks(books) {
+    for (let i = 0; i < books.length; i++) {
+      showStatus('Ricerca genere: '+(i+1)+'/'+books.length+'…', 'success');
+      try {
+        const genre = await fetchGenreOnline(books[i].title, books[i].author);
+        books[i].genre = genre || 'Altro';
+      } catch(e) {
+        books[i].genre = 'Altro';
+      }
+      if (i < books.length - 1) await new Promise(r => setTimeout(r, 150));
     }
   }
 
