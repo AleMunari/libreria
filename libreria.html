@@ -250,9 +250,27 @@
   // ====== AVVIO CON LISTENER IN TEMPO REALE ======
   if (isConfigured) {
     // Catalogo — si aggiorna automaticamente per tutti
-    catalogRef.onSnapshot(doc => {
+    catalogRef.onSnapshot(async doc => {
       state.catalog = doc.exists ? (doc.data().books || []) : [];
       render();
+      // Auto-identifica generi per i libri che ne sono privi
+      if (!genresFetching) {
+        const missing = state.catalog.filter(b => !b.genre);
+        if (missing.length) {
+          genresFetching = true;
+          const btn = document.getElementById('genre-btn');
+          if (btn) { btn.disabled = true; btn.textContent = 'Identificazione in corso\u2026'; }
+          try {
+            await fetchGenresForBooks(missing);
+            await saveCatalog();
+          } catch(e) { console.error('Auto-genre:', e); }
+          finally {
+            genresFetching = false;
+            if (btn) { btn.disabled = false; btn.textContent = 'Identifica generi'; }
+            render();
+          }
+        }
+      }
     }, err => { state.catalog = []; render(); });
 
     // Notifiche — si aggiornano automaticamente
@@ -416,17 +434,6 @@
     const parsed = parseMarkdown(text);
     if (!parsed.length) { showStatus('Nessun libro trovato. Formato: Titolo | Autore', 'error'); e.target.value=''; return; }
     state.catalog = mergeCatalog(state.catalog, parsed);
-    const missing = state.catalog.filter(b => !b.genre);
-    if (missing.length) {
-      genresFetching = true;
-      const btn = document.getElementById('genre-btn');
-      if (btn) { btn.disabled = true; btn.textContent = 'Identificazione in corso…'; }
-      try { await fetchGenresForBooks(missing); } catch(err) { console.error(err); }
-      finally {
-        genresFetching = false;
-        if (btn) { btn.disabled = false; btn.textContent = 'Identifica generi'; }
-      }
-    }
     await saveCatalog();
     showStatus('Catalogo aggiornato: '+parsed.length+' libri.', 'success');
     e.target.value = '';
