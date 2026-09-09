@@ -238,38 +238,46 @@
     'Altro':                { color: '#5A5A5A', bg: '#E0E0E0' }
   };
 
-  // Parole-chiave Google Books / Open Library → genere italiano
-  const GENRE_KEYWORD_MAP = {
-    'fiction':         'Romanzo',          'novel':          'Romanzo',
-    'romance':         'Romanzo',          'drama':          'Romanzo',
-    'mystery':         'Giallo/Thriller',  'detective':      'Giallo/Thriller',
-    'thriller':        'Giallo/Thriller',  'crime':          'Giallo/Thriller',
-    'suspense':        'Giallo/Thriller',  'horror':         'Giallo/Thriller',
-    'science fiction': 'Fantasy/Fantascienza', 'fantasy':    'Fantasy/Fantascienza',
-    'biography':       'Biografia',        'autobiography':  'Biografia',
-    'memoir':          'Biografia',
-    'history':         'Storia',           'historical':     'Storia',
-    'poetry':          'Poesia',           'poems':          'Poesia',
-    'classic':         'Classici',         'literary':       'Classici',
-    'juvenile':        'Bambini/Ragazzi',  'young adult':    'Bambini/Ragazzi',
-    'children':        'Bambini/Ragazzi',
-    'philosophy':      'Saggistica',       'psychology':     'Saggistica',
-    'social science':  'Saggistica',       'politics':       'Saggistica',
-    'nonfiction':      'Saggistica',       'non-fiction':    'Saggistica',
-    'essay':           'Saggistica',       'economics':      'Saggistica',
-    // Italiano (Open Library + edizioni IT Google Books)
-    'narrativa':       'Romanzo',          'romanzo':        'Romanzo',
-    'giallo':          'Giallo/Thriller',  'poliziesco':     'Giallo/Thriller',
-    'noir':            'Giallo/Thriller',
-    'fantascienza':    'Fantasy/Fantascienza', 'fantastico':  'Fantasy/Fantascienza',
-    'biografia':       'Biografia',        'autobiografia':  'Biografia',
-    'memorie':         'Biografia',
-    'storia':          'Storia',           'storico':        'Storia',
-    'poesia':          'Poesia',           'versi':          'Poesia',
-    'classici':        'Classici',
-    'ragazzi':         'Bambini/Ragazzi',  'bambini':        'Bambini/Ragazzi',
-    'saggistica':      'Saggistica',       'saggio':         'Saggistica',
-  };
+  // Parole-chiave per Wikipedia IT, Open Library, Google Books → genere italiano
+  const GENRE_KEYWORD_MAP = [
+    // Romanzo / Narrativa
+    ['romanzo',        'Romanzo'],   ['racconto',     'Romanzo'],
+    ['novella',        'Romanzo'],   ['narrativa',    'Romanzo'],
+    ['novel',          'Romanzo'],   ['fiction',      'Romanzo'],
+    ['romance',        'Romanzo'],   ['saga',         'Romanzo'],
+    // Giallo / Thriller
+    ['giallo',         'Giallo/Thriller'], ['thriller',   'Giallo/Thriller'],
+    ['noir',           'Giallo/Thriller'], ['poliziesco', 'Giallo/Thriller'],
+    ['mystery',        'Giallo/Thriller'], ['detective',  'Giallo/Thriller'],
+    ['suspense',       'Giallo/Thriller'], ['crime',      'Giallo/Thriller'],
+    // Fantasy / Fantascienza
+    ['fantascienza',   'Fantasy/Fantascienza'], ['fantasy',     'Fantasy/Fantascienza'],
+    ['fantastico',     'Fantasy/Fantascienza'], ['science fic', 'Fantasy/Fantascienza'],
+    // Biografia
+    ['autobiograf',    'Biografia'],  ['biografia',   'Biografia'],
+    ['autobiography',  'Biografia'],  ['memoir',      'Biografia'],
+    ['memorie',        'Biografia'],
+    // Storia
+    ['storico',        'Storia'],     ['storia',      'Storia'],
+    ['historical',     'Storia'],     ['history',     'Storia'],
+    // Poesia
+    ['poesia',         'Poesia'],     ['poesie',      'Poesia'],
+    ['lirica',         'Poesia'],     ['versi',       'Poesia'],
+    ['poetry',         'Poesia'],     ['poems',       'Poesia'],
+    // Classici
+    ['classico',       'Classici'],   ['classic',     'Classici'],
+    ['letteratura del', 'Classici'],
+    // Bambini / Ragazzi
+    ['ragazzi',        'Bambini/Ragazzi'], ['bambini',  'Bambini/Ragazzi'],
+    ['infanzia',       'Bambini/Ragazzi'], ['juvenile', 'Bambini/Ragazzi'],
+    ['young adult',    'Bambini/Ragazzi'], ['children', 'Bambini/Ragazzi'],
+    // Saggistica
+    ['saggio',         'Saggistica'], ['saggistica',  'Saggistica'],
+    ['essay',          'Saggistica'], ['nonfiction',  'Saggistica'],
+    ['filosofi',       'Saggistica'], ['psicologi',   'Saggistica'],
+    ['sociology',      'Saggistica'], ['politics',    'Saggistica'],
+    ['economics',      'Saggistica'],
+  ];
 
   // ====== STATO ======
   let state = { currentUser: null, isAdmin: false, catalog: [], notifications: [] };
@@ -605,11 +613,11 @@
     }
   }
 
-  function mapToItalianGenre(categories) {
-    if (!categories || !categories.length) return null;
-    for (const cat of categories) {
-      const lower = (cat || '').toLowerCase();
-      for (const [kw, genre] of Object.entries(GENRE_KEYWORD_MAP)) {
+  function mapToItalianGenre(texts) {
+    if (!texts || !texts.length) return null;
+    for (const t of texts) {
+      const lower = (t || '').toLowerCase().slice(0, 800);
+      for (const [kw, genre] of GENRE_KEYWORD_MAP) {
         if (lower.includes(kw)) return genre;
       }
     }
@@ -617,37 +625,64 @@
   }
 
   async function fetchGenreOnline(title, author) {
-    const q = encodeURIComponent((title || '').trim() + (author ? ' ' + author.trim() : ''));
-    // 1. Google Books — edizione italiana
+    const tq = encodeURIComponent((title||'').trim());
+    const aq = encodeURIComponent((author||'').trim());
+    const combined = encodeURIComponent(((title||'') + ' ' + (author||'')).trim());
+
+    // 1. Wikipedia italiano — fonte più affidabile per libri italiani
     try {
-      const r = await fetch('https://www.googleapis.com/books/v1/volumes?q='+q+'&maxResults=3&langRestrict=it&fields=items/volumeInfo/categories');
-      if (r.ok) {
-        const d = await r.json();
-        for (const item of (d.items || [])) { const g = mapToItalianGenre(item.volumeInfo?.categories); if (g) return g; }
+      const surl = 'https://it.wikipedia.org/w/api.php?action=query&list=search&srsearch='
+        + encodeURIComponent((title||'') + (author ? ' '+author : ''))
+        + '&srlimit=3&format=json&origin=*';
+      const sr = await fetch(surl);
+      if (sr.ok) {
+        const sd = await sr.json();
+        for (const hit of (sd.query?.search||[]).slice(0,2)) {
+          const er = await fetch('https://it.wikipedia.org/w/api.php?action=query'
+            +'&prop=extracts&exintro=true&explaintext=true'
+            +'&pageids='+hit.pageid+'&format=json&origin=*');
+          if (er.ok) {
+            const ed = await er.json();
+            const extract = Object.values(ed.query?.pages||{})[0]?.extract || '';
+            if (extract) {
+              const g = mapToItalianGenre([extract]);
+              if (g) return g;
+            }
+          }
+        }
       }
     } catch(e) {}
-    // 2. Google Books — qualsiasi lingua
+
+    // 2. Open Library
     try {
-      const r = await fetch('https://www.googleapis.com/books/v1/volumes?q='+q+'&maxResults=5&fields=items/volumeInfo/categories');
+      const r = await fetch('https://openlibrary.org/search.json?title='+tq
+        +(aq?'&author='+aq:'')+'&fields=subject&limit=3');
       if (r.ok) {
         const d = await r.json();
-        for (const item of (d.items || [])) { const g = mapToItalianGenre(item.volumeInfo?.categories); if (g) return g; }
+        for (const doc of (d.docs||[])) {
+          const g = mapToItalianGenre(doc.subject||[]);
+          if (g) return g;
+        }
       }
     } catch(e) {}
-    // 3. Open Library (fallback, ottimo per libri italiani)
+
+    // 3. Google Books
     try {
-      const tq = encodeURIComponent(title || '');
-      const aq = author ? '&author='+encodeURIComponent(author) : '';
-      const r = await fetch('https://openlibrary.org/search.json?title='+tq+aq+'&fields=subject&limit=3');
+      const r = await fetch('https://www.googleapis.com/books/v1/volumes?q='
+        +combined+'&maxResults=5&fields=items/volumeInfo/categories');
       if (r.ok) {
         const d = await r.json();
-        for (const doc of (d.docs || [])) { const g = mapToItalianGenre(doc.subject || []); if (g) return g; }
+        for (const item of (d.items||[])) {
+          const g = mapToItalianGenre(item.volumeInfo?.categories||[]);
+          if (g) return g;
+        }
       }
     } catch(e) {}
+
     return null;
   }
 
-  async function fetchGenresForBooks(books) {
+    async function fetchGenresForBooks(books) {
     for (let i = 0; i < books.length; i++) {
       showStatus('Ricerca genere: '+(i+1)+'/'+books.length+'…', 'success');
       try {
@@ -656,7 +691,7 @@
       } catch(e) {
         books[i].genre = 'Altro';
       }
-      if (i < books.length - 1) await new Promise(r => setTimeout(r, 150));
+      if (i < books.length - 1) await new Promise(r => setTimeout(r, 400));
     }
   }
 
