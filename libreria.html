@@ -98,15 +98,6 @@
   #config-error strong { display: block; margin-bottom: 0.4rem; font-family: var(--font-mono); text-transform: uppercase; letter-spacing: 0.08em; }
   #config-error code { background: rgba(0,0,0,0.08); padding: 0.1em 0.35em; border-radius: 2px; font-size: 0.85em; }
 
-  /* ====== GENERI ====== */
-  .genre-badge { display: inline-block; font-family: var(--font-mono); font-size: 0.7rem; letter-spacing: 0.07em; text-transform: uppercase; padding: 0.18rem 0.55rem; border-radius: 2px; margin-bottom: 0.6rem; border: 1px solid currentColor; }
-  .genre-filter-bar { display: flex; flex-wrap: wrap; gap: 0.4rem; align-items: center; margin-bottom: 1rem; padding: 0.65rem 0.9rem; background: var(--card); border: 1px solid var(--rule); border-radius: 2px; }
-  .genre-filter-label { font-family: var(--font-mono); font-size: 0.68rem; text-transform: uppercase; letter-spacing: 0.1em; color: var(--ink-muted); width: 100%; margin-bottom: 0.15rem; }
-  .genre-pill { font-family: var(--font-mono); font-size: 0.7rem; letter-spacing: 0.05em; text-transform: uppercase; padding: 0.28rem 0.6rem; border-radius: 2px; cursor: pointer; border: 1px solid currentColor; background: transparent; transition: opacity 0.15s; line-height: 1.35; }
-  .genre-pill:hover { opacity: 0.72; }
-  .genre-pill-all { font-family: var(--font-mono); font-size: 0.7rem; letter-spacing: 0.05em; text-transform: uppercase; padding: 0.28rem 0.6rem; border-radius: 2px; cursor: pointer; border: 1px solid var(--rule); background: transparent; color: var(--ink-muted); transition: opacity 0.15s; line-height: 1.35; }
-  .genre-pill-all:hover { opacity: 0.72; }
-  .genre-pill-all.active { color: var(--ink); border-color: var(--ink); font-weight: bold; }
 </style>
 </head>
 <body>
@@ -159,7 +150,6 @@
     <span id="search-count"></span>
   </div>
 
-  <div id="genre-filter-bar" class="genre-filter-bar" hidden></div>
 
   <div class="catalog-header">
     <h2>Catalogo</h2>
@@ -182,11 +172,6 @@
         <label for="md-upload">Carica / aggiorna elenco libri (.md)</label>
         <input type="file" id="md-upload" accept=".md,text/markdown,text/plain" />
         <p class="hint">Una riga per libro &mdash; formato: Autore | Titolo</p>
-        <div style="display:flex;gap:0.5rem;margin-top:0.75rem;flex-wrap:wrap;">
-          <button id="genre-btn" class="btn" onclick="assignMissingGenres()">Identifica generi</button>
-          <button id="genre-all-btn" class="btn btn-danger" onclick="assignAllGenres()">Ricalcola tutti</button>
-        </div>
-        <p class="hint">«Identifica generi» aggiunge solo i mancanti. «Ricalcola tutti» sovrascrive anche quelli già assegnati.</p>
       </div>
       <div id="notif-panel" hidden></div>
     </div>
@@ -226,68 +211,12 @@
   const ADMIN_WHATSAPP = '393346740647';
   const MAX_USER_ITEMS = 2; // un lettore può avere al massimo questo numero di libri/prenotazioni insieme (es. 1 in prestito + 1 nuovo)
 
-  // ====== GENERI ======
-  const GENRES = {
-    'Romanzo':              { color: '#3C5A48', bg: '#D8EAE0' },
-    'Giallo/Thriller':      { color: '#8B2020', bg: '#F2D8D8' },
-    'Fantasy/Fantascienza': { color: '#4A2A80', bg: '#E2D8F5' },
-    'Biografia':            { color: '#1E3A6A', bg: '#D0DCEE' },
-    'Saggistica':           { color: '#3A5A60', bg: '#CAE0E8' },
-    'Poesia':               { color: '#7A2060', bg: '#F2D8EC' },
-    'Storia':               { color: '#6A3A1A', bg: '#EAD8BC' },
-    'Classici':             { color: '#1A3A50', bg: '#C8DCE8' },
-    'Bambini/Ragazzi':      { color: '#4A6A1A', bg: '#D8EABC' },
-    'Narrativa Straniera':  { color: '#6A4A1A', bg: '#EAE0C4' },
-    'Altro':                { color: '#5A5A5A', bg: '#E0E0E0' }
-  };
 
-  // Parole-chiave per Wikipedia IT, Open Library, Google Books → genere italiano
-  const GENRE_KEYWORD_MAP = [
-    // Romanzo / Narrativa
-    ['romanzo',        'Romanzo'],   ['racconto',     'Romanzo'],
-    ['novella',        'Romanzo'],   ['narrativa',    'Romanzo'],
-    ['novel',          'Romanzo'],   ['fiction',      'Romanzo'],
-    ['romance',        'Romanzo'],   ['saga',         'Romanzo'],
-    // Giallo / Thriller
-    ['giallo',         'Giallo/Thriller'], ['thriller',   'Giallo/Thriller'],
-    ['noir',           'Giallo/Thriller'], ['poliziesco', 'Giallo/Thriller'],
-    ['mystery',        'Giallo/Thriller'], ['detective',  'Giallo/Thriller'],
-    ['suspense',       'Giallo/Thriller'], ['crime',      'Giallo/Thriller'],
-    // Fantasy / Fantascienza
-    ['fantascienza',   'Fantasy/Fantascienza'], ['fantasy',     'Fantasy/Fantascienza'],
-    ['fantastico',     'Fantasy/Fantascienza'], ['science fic', 'Fantasy/Fantascienza'],
-    // Biografia
-    ['autobiograf',    'Biografia'],  ['biografia',   'Biografia'],
-    ['autobiography',  'Biografia'],  ['memoir',      'Biografia'],
-    ['memorie',        'Biografia'],
-    // Storia
-    ['storico',        'Storia'],     ['storia',      'Storia'],
-    ['historical',     'Storia'],     ['history',     'Storia'],
-    // Poesia
-    ['poesia',         'Poesia'],     ['poesie',      'Poesia'],
-    ['lirica',         'Poesia'],     ['versi',       'Poesia'],
-    ['poetry',         'Poesia'],     ['poems',       'Poesia'],
-    // Classici
-    ['classico',       'Classici'],   ['classic',     'Classici'],
-    ['letteratura del', 'Classici'],
-    // Bambini / Ragazzi
-    ['ragazzi',        'Bambini/Ragazzi'], ['bambini',  'Bambini/Ragazzi'],
-    ['infanzia',       'Bambini/Ragazzi'], ['juvenile', 'Bambini/Ragazzi'],
-    ['young adult',    'Bambini/Ragazzi'], ['children', 'Bambini/Ragazzi'],
-    // Saggistica
-    ['saggio',         'Saggistica'], ['saggistica',  'Saggistica'],
-    ['essay',          'Saggistica'], ['nonfiction',  'Saggistica'],
-    ['filosofi',       'Saggistica'], ['psicologi',   'Saggistica'],
-    ['sociology',      'Saggistica'], ['politics',    'Saggistica'],
-    ['economics',      'Saggistica'],
-  ];
 
   // ====== STATO ======
   let state = { currentUser: null, isAdmin: false, catalog: [], notifications: [] };
   let searchTerm     = '';
   let notifPanelOpen = false;
-  let genreFilter    = null;
-  let genresFetching = false;
   // Resetta sempre il nome al caricamento (il browser potrebbe ricordare la selezione precedente)
   document.getElementById('user-select').value = '';
 
@@ -297,8 +226,6 @@
     catalogRef.onSnapshot(doc => {
       state.catalog = doc.exists ? (doc.data().books || []) : [];
       render();
-      // Lancia il fetch generi in background senza bloccare il listener
-      autoFetchGenres().catch(e => console.error('Auto-genre:', e));
     }, err => { state.catalog = []; render(); });
 
     // Notifiche — si aggiornano automaticamente
@@ -421,8 +348,8 @@
     existing.forEach(b => map.set(keyFor(b), b));
     return parsed.map(p => {
       const old = map.get(keyFor(p));
-      if (old) return { title:p.title, author:p.author, status:old.status, borrower:old.borrower, requestDate:old.requestDate, queue:old.queue||[], returnRequested:old.returnRequested||false, genre:old.genre||null };
-      return { title:p.title, author:p.author, status:'disponibile', borrower:null, requestDate:null, queue:[], returnRequested:false, genre:null };
+      if (old) return { title:p.title, author:p.author, status:old.status, borrower:old.borrower, requestDate:old.requestDate, queue:old.queue||[], returnRequested:old.returnRequested||false };
+      return { title:p.title, author:p.author, status:'disponibile', borrower:null, requestDate:null, queue:[], returnRequested:false };
     });
   }
 
@@ -598,190 +525,20 @@
     window.open('https://www.google.com/search?q=' + q, '_blank', 'noopener');
   }
 
-  // ====== GENERI — IDENTIFICAZIONE AI ======
-  async function autoFetchGenres() {
-    if (genresFetching) return;
-    const missing = state.catalog.filter(b => !b.genre);
-    if (!missing.length) return;
-    genresFetching = true;
-    const btn = document.getElementById('genre-btn');
-    if (btn) { btn.disabled = true; btn.textContent = 'Identificazione in corso\u2026'; }
-    try {
-      await fetchGenresForBooks(missing);
-      await saveCatalog();
-    } finally {
-      genresFetching = false;
-      if (btn) { btn.disabled = false; btn.textContent = 'Identifica generi'; }
-      render();
-    }
-  }
-
-  function mapToItalianGenre(texts) {
-    if (!texts || !texts.length) return null;
-    for (const t of texts) {
-      const lower = (t || '').toLowerCase().slice(0, 800);
-      for (const [kw, genre] of GENRE_KEYWORD_MAP) {
-        if (lower.includes(kw)) return genre;
-      }
-    }
-    return null;
-  }
-
-  async function fetchGenreOnline(title, author) {
-    const tq = encodeURIComponent((title||'').trim());
-    const aq = encodeURIComponent((author||'').trim());
-    const combined = encodeURIComponent(((title||'') + ' ' + (author||'')).trim());
-
-    // 1. Wikipedia italiano — fonte più affidabile per libri italiani
-    try {
-      const surl = 'https://it.wikipedia.org/w/api.php?action=query&list=search&srsearch='
-        + encodeURIComponent((title||'') + (author ? ' '+author : ''))
-        + '&srlimit=3&format=json&origin=*';
-      const sr = await fetch(surl);
-      if (sr.ok) {
-        const sd = await sr.json();
-        for (const hit of (sd.query?.search||[]).slice(0,2)) {
-          const er = await fetch('https://it.wikipedia.org/w/api.php?action=query'
-            +'&prop=extracts&exintro=true&explaintext=true'
-            +'&pageids='+hit.pageid+'&format=json&origin=*');
-          if (er.ok) {
-            const ed = await er.json();
-            const extract = Object.values(ed.query?.pages||{})[0]?.extract || '';
-            if (extract) {
-              const g = mapToItalianGenre([extract]);
-              if (g) return g;
-            }
-          }
-        }
-      }
-    } catch(e) {}
-
-    // 2. Open Library
-    try {
-      const r = await fetch('https://openlibrary.org/search.json?title='+tq
-        +(aq?'&author='+aq:'')+'&fields=subject&limit=3');
-      if (r.ok) {
-        const d = await r.json();
-        for (const doc of (d.docs||[])) {
-          const g = mapToItalianGenre(doc.subject||[]);
-          if (g) return g;
-        }
-      }
-    } catch(e) {}
-
-    // 3. Google Books
-    try {
-      const r = await fetch('https://www.googleapis.com/books/v1/volumes?q='
-        +combined+'&maxResults=5&fields=items/volumeInfo/categories');
-      if (r.ok) {
-        const d = await r.json();
-        for (const item of (d.items||[])) {
-          const g = mapToItalianGenre(item.volumeInfo?.categories||[]);
-          if (g) return g;
-        }
-      }
-    } catch(e) {}
-
-    return null;
-  }
-
-    async function fetchGenresForBooks(books) {
-    for (let i = 0; i < books.length; i++) {
-      showStatus('Ricerca genere: '+(i+1)+'/'+books.length+'…', 'success');
-      try {
-        const genre = await fetchGenreOnline(books[i].title, books[i].author);
-        books[i].genre = genre || 'Altro';
-      } catch(e) {
-        books[i].genre = 'Altro';
-      }
-      if (i < books.length - 1) await new Promise(r => setTimeout(r, 400));
-    }
-  }
-
-  async function assignMissingGenres() {
-    if (genresFetching) return;
-    const missing = state.catalog.filter(b => !b.genre);
-    if (!missing.length) { showStatus('Tutti i libri hanno già un genere assegnato.', 'success'); return; }
-    genresFetching = true;
-    const btn = document.getElementById('genre-btn');
-    const btnAll = document.getElementById('genre-all-btn');
-    if (btn) { btn.disabled = true; btn.textContent = 'Identificazione in corso…'; }
-    if (btnAll) btnAll.disabled = true;
-    try {
-      await fetchGenresForBooks(missing);
-      await saveCatalog();
-      showStatus('Generi identificati per '+missing.length+' libri!', 'success');
-    } catch(e) { showStatus('Errore durante l\'identificazione dei generi.', 'error'); }
-    finally {
-      genresFetching = false;
-      if (btn) { btn.disabled = false; btn.textContent = 'Identifica generi'; }
-      if (btnAll) btnAll.disabled = false;
-      render();
-    }
-  }
-
-  async function assignAllGenres() {
-    if (genresFetching) return;
-    if (!state.catalog.length) { showStatus('Catalogo vuoto.', 'error'); return; }
-    genresFetching = true;
-    const btn = document.getElementById('genre-btn');
-    const btnAll = document.getElementById('genre-all-btn');
-    if (btn) btn.disabled = true;
-    if (btnAll) { btnAll.disabled = true; btnAll.textContent = 'Ricalcolo in corso…'; }
-    // Azzera i generi esistenti per forzare il ricalcolo
-    state.catalog.forEach(b => { b.genre = null; });
-    try {
-      await fetchGenresForBooks(state.catalog);
-      await saveCatalog();
-      showStatus('Generi ricalcolati per tutti i '+state.catalog.length+' libri!', 'success');
-    } catch(e) { showStatus('Errore durante il ricalcolo dei generi.', 'error'); }
-    finally {
-      genresFetching = false;
-      if (btn) btn.disabled = false;
-      if (btnAll) { btnAll.disabled = false; btnAll.textContent = 'Ricalcola tutti'; }
-      render();
-    }
-  }
-
-  function setGenreFilter(genre) { genreFilter = genre; render(); }
-
-  function renderGenreFilter() {
-    const bar = document.getElementById('genre-filter-bar');
-    const counts = {};
-    state.catalog.forEach(b => { if (b.genre) counts[b.genre] = (counts[b.genre]||0)+1; });
-    const genres = Object.keys(counts).sort((a, b) => counts[b] - counts[a]);
-    if (!genres.length) { bar.hidden = true; return; }
-    bar.hidden = false;
-    let html = '<div class="genre-filter-label">Legenda &mdash; filtra per genere</div>';
-    html += '<button class="genre-pill-all'+(genreFilter===null?' active':'')+'" onclick="setGenreFilter(null)">Tutti ('+state.catalog.length+')</button>';
-    genres.forEach(g => {
-      const cfg = GENRES[g] || GENRES['Altro'];
-      const active = genreFilter === g;
-      html += '<button class="genre-pill'+(active?' active':'')+
-        '" style="color:'+cfg.color+';background:'+(active ? cfg.bg : 'transparent')+';border-color:'+cfg.color+
-        ';" onclick="setGenreFilter(\''+g.replace(/\\/g,'\\\\').replace(/'/g,"\\'")+'\')">'+esc(g)+' ('+counts[g]+')</button>';
-    });
-    bar.innerHTML = html;
-  }
 
   // ====== RENDERING ======
   function render() {
     renderNotifBadge();
     renderUserCount();
-    renderGenreFilter();
     const listEl = document.getElementById('book-list');
     if (!state.catalog.length) {
       listEl.innerHTML = '<p class="empty">Nessun libro in catalogo.<br>L\'amministratore deve caricare l\'elenco (.md).</p>';
       document.getElementById('search-count').textContent = ''; return;
     }
-    let filtered = searchTerm
+    const filtered = searchTerm
       ? state.catalog.filter(b => (b.title||'').toLowerCase().includes(searchTerm)||(b.author||'').toLowerCase().includes(searchTerm))
-      : [...state.catalog];
-    if (genreFilter) filtered = filtered.filter(b => b.genre === genreFilter);
-    const countLabel = (searchTerm || genreFilter)
-      ? filtered.length+' di '+state.catalog.length+' libri'
-      : state.catalog.length+' libri';
-    document.getElementById('search-count').textContent = countLabel;
+      : state.catalog;
+    document.getElementById('search-count').textContent = searchTerm ? filtered.length+' di '+state.catalog.length : state.catalog.length+' libri';
     if (!filtered.length) { listEl.innerHTML = '<p class="empty">Nessun risultato.</p>'; return; }
     listEl.innerHTML = filtered.map(b => bookCardHTML(b, state.catalog.indexOf(b))).join('');
   }
@@ -794,8 +551,6 @@
     const isMyBook     = state.currentUser && b.borrower === state.currentUser;
     const returnReq    = !!b.returnRequested;
 
-    const gCfg     = b.genre && GENRES[b.genre] ? GENRES[b.genre] : null;
-    const genreHTML = gCfg ? '<div class="genre-badge" style="color:'+gCfg.color+';background:'+gCfg.bg+';border-color:'+gCfg.color+';">'+esc(b.genre)+'</div>' : '';
 
     const statusHTML = isLoaned
       ? '<div class="stamp">In prestito a '+esc(b.borrower)+'<br>dal '+fmtDate(b.requestDate)+'</div>'
@@ -842,7 +597,6 @@
     return '<div class="book-card">'+
       '<div class="book-title">'+esc(b.title)+'</div>'+
       '<div class="book-author">'+esc(b.author)+'</div>'+
-      genreHTML +
       statusHTML + returnFlagHTML + queueHTML +
       '<div class="book-actions">'+
         '<a class="btn btn-blue" href="https://www.google.com/search?q='+encodeURIComponent(b.title+' '+b.author+' libro trama')+'" target="_blank" rel="noopener">Cerca online</a>'+
